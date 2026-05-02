@@ -117,10 +117,9 @@ export function stepPhysics(state: PhysicsState, controls: Controls, dt: number)
   newState.y += newState.vy * dt;
   newState.angle += newState.angularVelocity * dt;
 
-  // Status transitions
-  if (newState.status === 'armed' && newState.y > 200.1) newState.status = 'ascent';
+  // Status transitions. 'armed' is handled by the early return above, so by
+  // this point status is one of: 'ascent' | 'descent'.
   if (newState.status === 'ascent' && newState.vy < -0.1) newState.status = 'descent';
-  if (newState.status === 'armed' && newState.vy < -0.1) newState.status = 'descent';
 
   // Ground collision
   if (newState.y <= 0) {

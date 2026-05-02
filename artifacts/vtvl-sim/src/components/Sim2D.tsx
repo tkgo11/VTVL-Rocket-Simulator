@@ -87,7 +87,6 @@ export function Sim2D({ state }: Sim2DProps) {
       const groundScreenY = h - 80; // where ground meets screen at low alt
       const followCamY = h * 0.55 + s.y * scale;
       const camY = Math.max(groundScreenY, followCamY);
-      const camX = w / 2 + s.x * scale * 0.0; // pad stays centered
       const xOffset = w / 2 - s.x * scale * 0.5; // gentle horizontal follow
 
       // Sky gradient
@@ -149,14 +148,14 @@ export function Sim2D({ state }: Sim2DProps) {
       ctx.moveTo(padX + 10, camY - 1);
       ctx.lineTo(padX + padW - 10, camY - 1);
       ctx.stroke();
-      // Pad X marker
+      // Pad center crosshair
       ctx.strokeStyle = '#e2e8f0';
       ctx.lineWidth = 1.5;
       ctx.beginPath();
-      ctx.moveTo(xOffset - padW * 0.3, camY - 4);
-      ctx.lineTo(xOffset + padW * 0.3, camY - 4);
-      ctx.moveTo(xOffset - padW * 0.3, camY - 4);
-      ctx.lineTo(xOffset + padW * 0.3, camY - 4);
+      ctx.moveTo(xOffset - padW * 0.18, camY - 1);
+      ctx.lineTo(xOffset + padW * 0.18, camY - 1);
+      ctx.moveTo(xOffset, camY - 6);
+      ctx.lineTo(xOffset, camY + 4);
       ctx.stroke();
 
       // Altitude ladder on right side
