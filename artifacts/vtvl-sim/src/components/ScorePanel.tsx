@@ -8,6 +8,8 @@ interface ScorePanelProps {
   mission: MissionConfig;
   onReset: () => void;
   onBackToMissions: () => void;
+  onReplay?: () => void;
+  canReplay?: boolean;
 }
 
 function ScoreBar({
@@ -42,7 +44,14 @@ function ScoreBar({
   );
 }
 
-export function ScorePanel({ result, mission, onReset, onBackToMissions }: ScorePanelProps) {
+export function ScorePanel({
+  result,
+  mission,
+  onReset,
+  onBackToMissions,
+  onReplay,
+  canReplay,
+}: ScorePanelProps) {
   const { score, isNewBest, previousBest, best } = result;
   const crashed = score.crashed;
   const gradeColor = GRADE_COLORS[score.grade];
@@ -136,20 +145,32 @@ export function ScorePanel({ result, mission, onReset, onBackToMissions }: Score
             )}
           </div>
 
-          <div className="flex gap-3 pt-2">
-            <Button
-              onClick={onReset}
-              className="flex-1 bg-amber-600 hover:bg-amber-500 text-white font-bold tracking-wider uppercase"
-            >
-              Retry (R)
-            </Button>
-            <Button
-              onClick={onBackToMissions}
-              variant="outline"
-              className="flex-1 border-slate-700 text-slate-300 hover:bg-slate-800 font-bold tracking-wider uppercase"
-            >
-              Missions (M)
-            </Button>
+          <div className="flex flex-col gap-2 pt-2">
+            <div className="flex gap-3">
+              <Button
+                onClick={onReset}
+                className="flex-1 bg-amber-600 hover:bg-amber-500 text-white font-bold tracking-wider uppercase"
+              >
+                Retry (R)
+              </Button>
+              <Button
+                onClick={onBackToMissions}
+                variant="outline"
+                className="flex-1 border-slate-700 text-slate-300 hover:bg-slate-800 font-bold tracking-wider uppercase"
+              >
+                Missions (M)
+              </Button>
+            </div>
+            {onReplay && (
+              <Button
+                onClick={onReplay}
+                disabled={!canReplay}
+                variant="outline"
+                className="w-full border-amber-700/60 text-amber-300 hover:bg-amber-500/10 hover:text-amber-200 font-bold tracking-wider uppercase disabled:opacity-50"
+              >
+                Review Flight (V)
+              </Button>
+            )}
           </div>
         </div>
       </div>
