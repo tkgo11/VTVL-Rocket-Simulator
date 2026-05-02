@@ -2,16 +2,18 @@ import { useRef } from 'react';
 import { Canvas, useFrame } from '@react-three/fiber';
 import { Stars, Sparkles, Sky, Grid } from '@react-three/drei';
 import * as THREE from 'three';
-import { MissionConfig, PhysicsState, CONSTANTS } from '../lib/physics';
+import { MissionConfig, PhysicsState, VehicleConfig, DEFAULT_VEHICLE, CONSTANTS } from '../lib/physics';
 
 interface Sim3DProps {
   state: PhysicsState;
   mission: MissionConfig;
+  vehicle?: VehicleConfig;
 }
 
-function Rocket({ state }: { state: PhysicsState }) {
+function Rocket({ state, vehicle }: { state: PhysicsState; vehicle: VehicleConfig }) {
   const groupRef = useRef<THREE.Group>(null);
   const nozzleRef = useRef<THREE.Mesh>(null);
+  const maxGimbalRad = vehicle.maxGimbalDeg * (Math.PI / 180);
 
   useFrame(() => {
     if (groupRef.current) {
@@ -19,7 +21,7 @@ function Rocket({ state }: { state: PhysicsState }) {
       groupRef.current.rotation.z = -state.angle;
     }
     if (nozzleRef.current) {
-      nozzleRef.current.rotation.z = state.gimbal * CONSTANTS.MAX_GIMBAL_ANGLE;
+      nozzleRef.current.rotation.z = state.gimbal * maxGimbalRad;
     }
   });
 
@@ -122,7 +124,7 @@ function getPlanetTheme(mission: MissionConfig): PlanetTheme {
   return { ground: '#0f172a', ambient: 0.2, sun: '#fff5e6', hasSky: true, hasStars: true };
 }
 
-export function Sim3D({ state, mission }: Sim3DProps) {
+export function Sim3D({ state, mission, vehicle = DEFAULT_VEHICLE }: Sim3DProps) {
   const theme = getPlanetTheme(mission);
 
   return (
@@ -180,7 +182,7 @@ export function Sim3D({ state, mission }: Sim3DProps) {
 
         <Pad mission={mission} />
 
-        <Rocket state={state} />
+        <Rocket state={state} vehicle={vehicle} />
       </Canvas>
     </div>
   );

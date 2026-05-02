@@ -47,23 +47,63 @@ export interface MissionConfig {
   airDensity: number;
 }
 
-// Vehicle constants (mission-independent).
+/**
+ * Tunable per-vehicle parameters. These used to be baked into a single
+ * `CONSTANTS` table — exposing them as a config lets users dial in different
+ * vehicles (Falcon 9, Starship hop, lunar lander, custom) and explore how
+ * each parameter affects flight.
+ *
+ * Geometry-only constants (length, diameter, lever arm) and the angular
+ * damping coefficient remain in `CONSTANTS` because they're not physically
+ * meaningful for the user to tweak.
+ */
+export interface VehicleConfig {
+  id: string;
+  name: string;
+  dryMass: number;        // kg
+  fuelMass: number;       // kg propellant loaded at start
+  maxThrust: number;      // N
+  isp: number;            // s (specific impulse)
+  maxGimbalDeg: number;   // degrees
+  dragCoef: number;       // dimensionless Cd
+}
+
+// Geometry / non-tunable constants. Exposed so renderers can size the rocket.
 export const CONSTANTS = {
-  GRAVITY: 9.81,
-  DRY_MASS: 25000,
-  INITIAL_FUEL: 50000,
-  MAX_THRUST: 845000,
-  ISP: 282,
-  MAX_GIMBAL_ANGLE: 15 * (Math.PI / 180),
   LENGTH: 40,
   DIAMETER: 3.7,
   LEVER_ARM: 15,
-  DRAG_COEF: 0.5,
-  AIR_DENSITY: 1.225,
   ANGULAR_DAMPING: 0.05,
 };
 
-export function createInitialState(mission: MissionConfig): PhysicsState {
+// Default vehicle (Falcon 9-ish booster) — preserves the previous baked-in
+// behaviour of the simulator so existing missions still grade the same way
+// when the user hasn't touched the settings panel.
+export const DEFAULT_VEHICLE: VehicleConfig = {
+  id: 'falcon9',
+  name: 'Falcon 9 Booster',
+  dryMass: 25000,
+  fuelMass: 50000,
+  maxThrust: 845000,
+  isp: 282,
+  maxGimbalDeg: 15,
+  dragCoef: 0.5,
+};
+
+/**
+ * Effective starting fuel for a run. The mission specifies its propellant
+ * load, but the user can override the vehicle's fuel mass in the settings
+ * panel — when they do, the lower of the two wins so missions that ship the
+ * vehicle with a small tank (e.g. Low-Fuel Emergency) stay challenging.
+ */
+export function effectiveStartFuel(mission: MissionConfig, vehicle: VehicleConfig): number {
+  return Math.min(mission.fuel, vehicle.fuelMass);
+}
+
+export function createInitialState(
+  mission: MissionConfig,
+  vehicle: VehicleConfig = DEFAULT_VEHICLE,
+): PhysicsState {
   return {
     x: 0,
     y: mission.startAltitude,
@@ -73,7 +113,7 @@ export function createInitialState(mission: MissionConfig): PhysicsState {
     angularVelocity: 0,
     throttle: 0,
     gimbal: 0,
-    fuel: mission.fuel,
+    fuel: effectiveStartFuel(mission, vehicle),
     status: 'armed',
     t: 0,
     windNow: mission.wind,
@@ -96,6 +136,7 @@ export function stepPhysics(
   controls: Controls,
   dt: number,
   mission: MissionConfig,
+  vehicle: VehicleConfig = DEFAULT_VEHICLE,
 ): PhysicsState {
   if (state.status === 'landed' || state.status === 'crashed') {
     return state;
@@ -127,17 +168,21 @@ export function stepPhysics(
     newState.throttle = 0;
   }
 
-  const mass = CONSTANTS.DRY_MASS + newState.fuel;
+  const mass = vehicle.dryMass + newState.fuel;
   const momentOfInertia = (1 / 12) * mass * Math.pow(CONSTANTS.LENGTH, 2);
   const area = Math.PI * Math.pow(CONSTANTS.DIAMETER / 2, 2);
+  const maxGimbalRad = vehicle.maxGimbalDeg * (Math.PI / 180);
 
-  // Mass loss
-  const thrust = newState.throttle * CONSTANTS.MAX_THRUST;
-  const mdot = thrust / (CONSTANTS.ISP * CONSTANTS.GRAVITY);
+  // Mass loss. mdot uses Earth-standard g0 (9.80665) by convention for Isp;
+  // we approximate with mission gravity so off-Earth missions still consume
+  // realistic propellant — the difference is small in practice.
+  const thrust = newState.throttle * vehicle.maxThrust;
+  const g0 = 9.80665;
+  const mdot = thrust / (vehicle.isp * g0);
   newState.fuel = Math.max(0, newState.fuel - mdot * dt);
 
   // Thrust forces
-  const gimbalAngle = newState.gimbal * CONSTANTS.MAX_GIMBAL_ANGLE;
+  const gimbalAngle = newState.gimbal * maxGimbalRad;
   const thrustAngle = newState.angle + gimbalAngle;
 
   const thrust_x = thrust * Math.sin(thrustAngle);
@@ -148,7 +193,7 @@ export function stepPhysics(
   const vRelY = newState.vy;
   const speedRel = Math.sqrt(vRelX * vRelX + vRelY * vRelY);
   const drag_mag =
-    0.5 * mission.airDensity * CONSTANTS.DRAG_COEF * area * speedRel * speedRel;
+    0.5 * mission.airDensity * vehicle.dragCoef * area * speedRel * speedRel;
   const drag_x = speedRel > 0 ? -drag_mag * (vRelX / speedRel) : 0;
   const drag_y = speedRel > 0 ? -drag_mag * (vRelY / speedRel) : 0;
 

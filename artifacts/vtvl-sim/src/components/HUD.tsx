@@ -1,15 +1,16 @@
-import { MissionConfig, PhysicsState } from '../lib/physics';
+import { MissionConfig, PhysicsState, VehicleConfig, DEFAULT_VEHICLE } from '../lib/physics';
 
 interface HUDProps {
   state: PhysicsState;
   mission: MissionConfig;
+  vehicle?: VehicleConfig;
 }
 
 function formatNumber(num: number, decimals: number = 1): string {
   return num.toFixed(decimals).padStart(decimals > 0 ? 5 + decimals : 4, ' ');
 }
 
-export function HUD({ state, mission }: HUDProps) {
+export function HUD({ state, mission, vehicle = DEFAULT_VEHICLE }: HUDProps) {
   const isCrashed = state.status === 'crashed';
   const isLanded = state.status === 'landed';
   const padDeviation = state.x - mission.targetPadX;
@@ -48,7 +49,7 @@ export function HUD({ state, mission }: HUDProps) {
         <div className="text-right text-white">{formatNumber(state.throttle * 100, 0)} <span className="text-slate-500 text-xs">%</span></div>
 
         <div className="text-slate-500">GIMBAL</div>
-        <div className="text-right text-white">{formatNumber(state.gimbal * 15, 1)} <span className="text-slate-500 text-xs">°</span></div>
+        <div className="text-right text-white">{formatNumber(state.gimbal * vehicle.maxGimbalDeg, 1)} <span className="text-slate-500 text-xs">°</span></div>
 
         <div className="text-slate-500">FUEL</div>
         <div className="text-right text-white">{formatNumber(state.fuel, 0)} <span className="text-slate-500 text-xs">kg</span></div>

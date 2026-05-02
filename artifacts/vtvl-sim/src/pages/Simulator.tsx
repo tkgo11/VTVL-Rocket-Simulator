@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useSimulation } from '../hooks/useSimulation';
 import { Sim2D } from '../components/Sim2D';
 import { Sim3D } from '../components/Sim3D';
@@ -9,8 +9,10 @@ import { ScorePanel } from '../components/ScorePanel';
 import { WindPanel } from '../components/WindPanel';
 import { Timeline } from '../components/Timeline';
 import { SavedFlights } from '../components/SavedFlights';
+import { SettingsPanel } from '../components/SettingsPanel';
+import { TelemetryCharts } from '../components/TelemetryCharts';
 import { Button } from '../components/ui/button';
-import { MissionConfig } from '../lib/physics';
+import { MissionConfig, VehicleConfig, DEFAULT_VEHICLE } from '../lib/physics';
 import {
   FlightRecording,
   getSavedRecordings,
@@ -38,6 +40,22 @@ interface SimulatorProps {
 }
 
 export default function Simulator({ mission, onBackToMissions }: SimulatorProps) {
+  const [vehicle, setVehicle] = useState<VehicleConfig>(DEFAULT_VEHICLE);
+  const [gravity, setGravity] = useState<number>(mission.gravity);
+
+  // When the mission changes, reset the gravity override so each mission
+  // starts from its own physical defaults. The vehicle preset persists
+  // across missions — users tend to want to compare hardware on the same
+  // flight profile.
+  useEffect(() => {
+    setGravity(mission.gravity);
+  }, [mission.id, mission.gravity]);
+
+  const missionWithGravity = useMemo<MissionConfig>(
+    () => ({ ...mission, gravity }),
+    [mission, gravity],
+  );
+
   const {
     state,
     controls,
@@ -49,6 +67,7 @@ export default function Simulator({ mission, onBackToMissions }: SimulatorProps)
     fps,
     runResult,
     mission: effectiveMission,
+    telemetry,
     windOverride,
     setWindOverride,
     latestRecording,
@@ -58,7 +77,7 @@ export default function Simulator({ mission, onBackToMissions }: SimulatorProps)
     seekReplay,
     setReplayPlaying,
     setReplaySpeed,
-  } = useSimulation(mission);
+  } = useSimulation(missionWithGravity, vehicle);
 
   const [mode, setMode] = useState<'2d' | '3d'>(HAS_WEBGL ? '3d' : '2d');
   const [archiveOpen, setArchiveOpen] = useState(false);
@@ -141,16 +160,17 @@ export default function Simulator({ mission, onBackToMissions }: SimulatorProps)
 
   return (
     <div className="relative w-full h-screen overflow-hidden bg-black selection:bg-amber-500/30">
-      {/* Viewport — driven by the *effective* mission so wind-dependent UI
-          (HUD wind row, 2D wind indicator) reflects live overrides. */}
+      {/* Viewport — driven by the *effective* mission so wind- and gravity-
+          dependent UI (HUD wind row, 2D wind indicator) reflects live
+          overrides. */}
       {mode === '2d' ? (
-        <Sim2D state={state} mission={effectiveMission} />
+        <Sim2D state={state} mission={effectiveMission} vehicle={vehicle} />
       ) : (
-        <Sim3D state={state} mission={effectiveMission} />
+        <Sim3D state={state} mission={effectiveMission} vehicle={vehicle} />
       )}
 
       {/* Overlay UI */}
-      <HUD state={state} mission={effectiveMission} />
+      <HUD state={state} mission={effectiveMission} vehicle={vehicle} />
       <ModeToggle mode={mode} setMode={setMode} />
 
       <WindPanel
@@ -158,6 +178,21 @@ export default function Simulator({ mission, onBackToMissions }: SimulatorProps)
         setWindOverride={setWindOverride}
         windNow={state.windNow}
         disabled={inReplay}
+      />
+
+      <SettingsPanel
+        vehicle={vehicle}
+        setVehicle={setVehicle}
+        mission={mission}
+        gravity={gravity}
+        setGravity={setGravity}
+        defaultGravity={mission.gravity}
+      />
+
+      <TelemetryCharts
+        telemetry={telemetry}
+        vehicle={vehicle}
+        missionFuel={mission.fuel}
       />
 
       {/* Archive button (top-left, below HUD area) */}
@@ -184,13 +219,12 @@ export default function Simulator({ mission, onBackToMissions }: SimulatorProps)
           status={state.status}
           launchLabel={launchLabel}
           onBackToMissions={onBackToMissions}
+          maxGimbalDeg={vehicle.maxGimbalDeg}
         />
       )}
 
-      {/* Score panel uses the effective mission for accurate score-context labels */}
-
       {/* Status Bar */}
-      <div className="absolute bottom-2 right-4 flex items-center gap-4 text-[10px] font-mono text-slate-500">
+      <div className="absolute bottom-2 right-4 flex items-center gap-4 text-[10px] font-mono text-slate-500 z-10">
         <div>FPS: <span className="text-slate-300">{fps}</span></div>
         <div>SYS: <span className="text-slate-300">{state.status.toUpperCase()}</span></div>
         <div>AP: <span className={autopilotEnabled ? "text-amber-400" : "text-slate-300"}>{autopilotEnabled ? 'ENGAGED' : 'STBY'}</span></div>

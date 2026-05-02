@@ -1,4 +1,4 @@
-import { PhysicsState, Controls, MissionConfig, CONSTANTS } from './physics';
+import { PhysicsState, Controls, MissionConfig, VehicleConfig, DEFAULT_VEHICLE } from './physics';
 
 const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v));
 
@@ -13,12 +13,14 @@ const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v
  *                               by the vehicle's actual deceleration capability)
  *                desired vy  -> throttle (feed-forward hover + P on velocity error)
  *
- * Mission parameters (gravity, target pad, wind) are consumed so the controller
- * works on any planet and steers to off-axis pads.
+ * Mission and vehicle parameters (gravity, target pad, wind, dry mass, max
+ * thrust) are consumed so the controller works on any planet, with any
+ * vehicle preset, and steers to off-axis pads.
  */
 export function computeAutopilotControls(
   state: PhysicsState,
   mission: MissionConfig,
+  vehicle: VehicleConfig = DEFAULT_VEHICLE,
 ): Controls {
   // Pre-launch / post-flight: do nothing.
   if (
@@ -29,9 +31,9 @@ export function computeAutopilotControls(
     return { throttle: 0, gimbal: 0 };
   }
 
-  const mass = CONSTANTS.DRY_MASS + state.fuel;
+  const mass = vehicle.dryMass + state.fuel;
   const g = mission.gravity;
-  const Tmax = CONSTANTS.MAX_THRUST;
+  const Tmax = vehicle.maxThrust;
   const hoverThrottle = (mass * g) / Tmax;
   // Max upward deceleration the engine can produce *right now*, with a safety
   // factor so we always have headroom against drag/tilt losses and mass change.

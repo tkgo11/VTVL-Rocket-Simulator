@@ -1,9 +1,10 @@
 import { useEffect, useRef } from 'react';
-import { MissionConfig, PhysicsState, CONSTANTS } from '../lib/physics';
+import { MissionConfig, PhysicsState, VehicleConfig, DEFAULT_VEHICLE, CONSTANTS } from '../lib/physics';
 
 interface Sim2DProps {
   state: PhysicsState;
   mission: MissionConfig;
+  vehicle?: VehicleConfig;
 }
 
 interface Particle {
@@ -23,16 +24,18 @@ interface Star {
   twinkle: number;
 }
 
-export function Sim2D({ state, mission }: Sim2DProps) {
+export function Sim2D({ state, mission, vehicle = DEFAULT_VEHICLE }: Sim2DProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const stateRef = useRef(state);
   const missionRef = useRef(mission);
+  const vehicleRef = useRef(vehicle);
   const particlesRef = useRef<Particle[]>([]);
   const starsRef = useRef<Star[]>([]);
 
   // Keep latest state for the rAF loop without re-running setup.
   stateRef.current = state;
   missionRef.current = mission;
+  vehicleRef.current = vehicle;
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -76,6 +79,8 @@ export function Sim2D({ state, mission }: Sim2DProps) {
       last = now;
       const s = stateRef.current;
       const m = missionRef.current;
+      const v = vehicleRef.current;
+      const maxGimbalRad = v.maxGimbalDeg * (Math.PI / 180);
 
       const w = canvas.clientWidth;
       const h = canvas.clientHeight;
@@ -278,7 +283,7 @@ export function Sim2D({ state, mission }: Sim2DProps) {
         const nx = rocketScreenX + Math.sin(angle) * nozzleOffset;
         const ny = rocketScreenY + Math.cos(angle) * nozzleOffset;
         // Thrust direction (down body axis + gimbal)
-        const thrustAngle = angle + s.gimbal * CONSTANTS.MAX_GIMBAL_ANGLE;
+        const thrustAngle = angle + s.gimbal * maxGimbalRad;
         const dirX = Math.sin(thrustAngle);
         const dirY = Math.cos(thrustAngle);
         for (let i = 0; i < spawn; i++) {
@@ -376,7 +381,7 @@ export function Sim2D({ state, mission }: Sim2DProps) {
 
       // Nozzle (gimbaled)
       ctx.save();
-      ctx.rotate(s.gimbal * CONSTANTS.MAX_GIMBAL_ANGLE);
+      ctx.rotate(s.gimbal * maxGimbalRad);
       ctx.fillStyle = '#1e293b';
       ctx.beginPath();
       ctx.moveTo(-rW * 0.3, 0);

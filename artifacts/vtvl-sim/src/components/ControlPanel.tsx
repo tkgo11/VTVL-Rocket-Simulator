@@ -13,6 +13,7 @@ interface ControlPanelProps {
   status: string;
   launchLabel?: string;
   onBackToMissions?: () => void;
+  maxGimbalDeg?: number;
 }
 
 export function ControlPanel({
@@ -25,6 +26,7 @@ export function ControlPanel({
   status,
   launchLabel = 'Launch',
   onBackToMissions,
+  maxGimbalDeg = 15,
 }: ControlPanelProps) {
 
   useEffect(() => {
@@ -125,7 +127,7 @@ export function ControlPanel({
         <div className="flex-1 flex flex-col gap-2">
           <div className="flex justify-between items-center text-xs font-mono text-slate-400">
             <span>GIMBAL</span>
-            <span>{(controls.gimbal * 15).toFixed(1)}°</span>
+            <span>{(controls.gimbal * maxGimbalDeg).toFixed(1)}°</span>
           </div>
           <Slider
             value={[controls.gimbal]}

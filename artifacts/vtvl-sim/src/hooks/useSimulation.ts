@@ -3,6 +3,8 @@ import {
   PhysicsState,
   Controls,
   MissionConfig,
+  VehicleConfig,
+  DEFAULT_VEHICLE,
   stepPhysics,
   createInitialState,
 } from '../lib/physics';
@@ -22,6 +24,8 @@ const FIXED_DT = 1 / 120; // 120Hz physics
 const RECORDING_HZ = 60;  // sample at most this often into the recording buffer
 const PERSIST_HZ = 30;    // resampled rate for the persisted/replay frames
 const MAX_RECORDING_FRAMES = 7200; // ~2 minutes at 60Hz, hard safety cap
+const TELEMETRY_SAMPLE_DT = 0.1; // sample telemetry every 100ms (sim time)
+const TELEMETRY_MAX_POINTS = 600; // ~60s of flight at the sample rate above
 
 export interface RunResult {
   score: ScoreResult;
@@ -42,13 +46,27 @@ export interface ReplayState {
   speed: number;
 }
 
-export function useSimulation(mission: MissionConfig) {
+export interface TelemetrySample {
+  t: number;
+  altitude: number;
+  vy: number;
+  vx: number;
+  speed: number;
+  throttle: number;
+  fuel: number;
+}
+
+export function useSimulation(mission: MissionConfig, vehicle: VehicleConfig = DEFAULT_VEHICLE) {
   const missionRef = useRef<MissionConfig>(mission);
-  const stateRef = useRef<PhysicsState>(createInitialState(mission));
+  const vehicleRef = useRef<VehicleConfig>(vehicle);
+  const stateRef = useRef<PhysicsState>(createInitialState(mission, vehicle));
   const controlsRef = useRef<Controls>({ throttle: 0, gimbal: 0 });
   const autopilotEnabledRef = useRef(false);
   const lastStatusRef = useRef<PhysicsState['status']>(stateRef.current.status);
+  const telemetryRef = useRef<TelemetrySample[]>([]);
+  const lastTelemetrySimTRef = useRef(0);
   const [renderState, setRenderState] = useState<PhysicsState>(stateRef.current);
+  const [telemetry, setTelemetry] = useState<TelemetrySample[]>([]);
   const [runResult, setRunResult] = useState<RunResult | null>(null);
   const [fps, setFps] = useState(0);
 
@@ -87,27 +105,39 @@ export function useSimulation(mission: MissionConfig) {
   );
 
   const reset = useCallback(() => {
-    stateRef.current = createInitialState(missionRef.current);
+    stateRef.current = createInitialState(missionRef.current, vehicleRef.current);
     controlsRef.current = { throttle: 0, gimbal: 0 };
     autopilotEnabledRef.current = false;
     lastStatusRef.current = stateRef.current.status;
     recordingFramesRef.current = [];
     recordingActiveRef.current = false;
     lastRecordedTRef.current = -Infinity;
+    telemetryRef.current = [];
+    lastTelemetrySimTRef.current = 0;
     setRunResult(null);
     setLatestRecording(null);
     setReplay({ recording: null, time: 0, playing: false, speed: 1 });
+    setTelemetry([]);
     setRenderState({ ...stateRef.current });
   }, []);
 
   // When the mission changes, fully reset the simulator state and snap the
-  // wind override back to the mission's defaults.
+  // wind override back to the mission's defaults. When only the vehicle
+  // changes, reset without disturbing the user's wind tweaks.
   useEffect(() => {
     const defaults = { speed: mission.wind, gust: mission.windGust };
     setWindOverrideState(defaults);
     missionRef.current = composeMission(mission, defaults);
+    vehicleRef.current = vehicle;
     reset();
-  }, [mission, reset, composeMission]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mission, composeMission]);
+
+  useEffect(() => {
+    vehicleRef.current = vehicle;
+    reset();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [vehicle]);
 
   const setWindOverride = useCallback(
     (next: Partial<WindOverride>) => {
@@ -127,7 +157,8 @@ export function useSimulation(mission: MissionConfig) {
 
   const launch = useCallback(() => {
     const m = missionRef.current;
-    const fresh = createInitialState(m);
+    const v = vehicleRef.current;
+    const fresh = createInitialState(m, v);
     if (m.startMode === 'launch') {
       stateRef.current = { ...fresh, status: 'ascent' };
       controlsRef.current = { throttle: 1, gimbal: 0 };
@@ -141,6 +172,9 @@ export function useSimulation(mission: MissionConfig) {
     recordingFramesRef.current = [frameFromState(stateRef.current)];
     recordingActiveRef.current = true;
     lastRecordedTRef.current = stateRef.current.t;
+    telemetryRef.current = [];
+    lastTelemetrySimTRef.current = 0;
+    setTelemetry([]);
     setRunResult(null);
     setLatestRecording(null);
     setReplay({ recording: null, time: 0, playing: false, speed: 1 });
@@ -244,15 +278,11 @@ export function useSimulation(mission: MissionConfig) {
 
       while (accumulator >= FIXED_DT) {
         const m = missionRef.current;
+        const v = vehicleRef.current;
         if (autopilotEnabledRef.current) {
-          controlsRef.current = computeAutopilotControls(stateRef.current, m);
+          controlsRef.current = computeAutopilotControls(stateRef.current, m, v);
         }
-        stateRef.current = stepPhysics(
-          stateRef.current,
-          controlsRef.current,
-          FIXED_DT,
-          m,
-        );
+        stateRef.current = stepPhysics(stateRef.current, controlsRef.current, FIXED_DT, m, v);
         accumulator -= FIXED_DT;
       }
 
@@ -266,6 +296,31 @@ export function useSimulation(mission: MissionConfig) {
           recordingFramesRef.current.push(frameFromState(stateRef.current));
           lastRecordedTRef.current = t;
         }
+      }
+
+      // Sample telemetry at a fixed sim-time interval. Skipped while armed
+      // so the chart doesn't accumulate a flatline before launch.
+      const s = stateRef.current;
+      if (
+        s.status !== 'armed' &&
+        s.t - lastTelemetrySimTRef.current >= TELEMETRY_SAMPLE_DT
+      ) {
+        lastTelemetrySimTRef.current = s.t;
+        telemetryRef.current.push({
+          t: s.t,
+          altitude: s.y,
+          vy: s.vy,
+          vx: s.vx,
+          speed: Math.hypot(s.vx, s.vy),
+          throttle: s.throttle,
+          fuel: s.fuel,
+        });
+        if (telemetryRef.current.length > TELEMETRY_MAX_POINTS) {
+          telemetryRef.current.splice(0, telemetryRef.current.length - TELEMETRY_MAX_POINTS);
+        }
+        // Surface a snapshot. Slicing creates a fresh array reference so React
+        // sees a state change; we sample at 10Hz so this is cheap.
+        setTelemetry(telemetryRef.current.slice());
       }
 
       // Detect end-of-run transition and compute the score exactly once.
@@ -341,6 +396,8 @@ export function useSimulation(mission: MissionConfig) {
     fps,
     runResult,
     mission: missionRef.current,
+    vehicle,
+    telemetry,
     // Wind
     windOverride,
     setWindOverride,
