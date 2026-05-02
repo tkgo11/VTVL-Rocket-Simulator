@@ -1,0 +1,31 @@
+kind = "web"
+previewPath = "/"
+title = "VTVL Simulator"
+version = "1.0.0"
+id = "artifacts/vtvl-sim"
+router = "path"
+
+[[integratedSkills]]
+name = "react-vite"
+version = "1.0.0"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 26221
+
+[services.development]
+run = "pnpm --filter @workspace/vtvl-sim run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/vtvl-sim", "run", "build" ]
+publicDir = "artifacts/vtvl-sim/dist/public"
+serve = "static"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "26221"
+BASE_PATH = "/"
