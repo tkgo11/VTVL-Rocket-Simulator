@@ -52,6 +52,19 @@ export function stepPhysics(state: PhysicsState, controls: Controls, dt: number)
     return state;
   }
 
+  // Pre-launch: vehicle is held on the pad. No integration runs until the
+  // user presses Launch (which transitions status away from 'armed').
+  if (state.status === 'armed') {
+    return {
+      ...state,
+      throttle: 0,
+      gimbal: 0,
+      vx: 0,
+      vy: 0,
+      angularVelocity: 0,
+    };
+  }
+
   const newState = { ...state };
 
   newState.throttle = Math.max(0, Math.min(1, controls.throttle));

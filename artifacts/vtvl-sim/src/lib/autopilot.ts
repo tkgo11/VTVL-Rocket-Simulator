@@ -54,7 +54,7 @@ export function computeAutopilotControls(state: PhysicsState): Controls {
   // PI control for vertical velocity -> throttle
   let throttleCmd = hoverThrottle + errorVy * 0.05;
   
-  if (state.y <= 0 && state.status === 'landed') {
+  if (state.y <= 0) {
     throttleCmd = 0;
   }
 

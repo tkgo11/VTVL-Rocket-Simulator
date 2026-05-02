@@ -29,24 +29,34 @@ export function ControlPanel({
         if (e.key.toLowerCase() === 'r') reset();
         return;
       }
-      
+
       if (e.repeat) return;
-      
-      switch(e.key.toLowerCase()) {
+
+      const k = e.key.toLowerCase();
+      switch (k) {
         case 'w':
+        case 'arrowup':
           if (!autopilotEnabled) setControls({ throttle: Math.min(1, controls.throttle + 0.1) });
+          e.preventDefault();
           break;
         case 's':
+        case 'arrowdown':
           if (!autopilotEnabled) setControls({ throttle: Math.max(0, controls.throttle - 0.1) });
+          e.preventDefault();
           break;
         case 'a':
+        case 'arrowleft':
           if (!autopilotEnabled) setControls({ gimbal: Math.max(-1, controls.gimbal - 0.2) });
+          e.preventDefault();
           break;
         case 'd':
+        case 'arrowright':
           if (!autopilotEnabled) setControls({ gimbal: Math.min(1, controls.gimbal + 0.2) });
+          e.preventDefault();
           break;
         case ' ':
           if (!autopilotEnabled) setControls({ throttle: 1 });
+          e.preventDefault();
           break;
         case 'p':
           setAutopilotEnabled(!autopilotEnabled);
@@ -59,14 +69,17 @@ export function ControlPanel({
 
     const handleKeyUp = (e: KeyboardEvent) => {
       if (status === 'landed' || status === 'crashed') return;
-      
-      switch(e.key.toLowerCase()) {
+
+      const k = e.key.toLowerCase();
+      switch (k) {
         case 'a':
         case 'd':
-          if (!autopilotEnabled) setControls({ gimbal: 0 }); // auto-center gimbal
+        case 'arrowleft':
+        case 'arrowright':
+          if (!autopilotEnabled) setControls({ gimbal: 0 });
           break;
         case ' ':
-          if (!autopilotEnabled) setControls({ throttle: 0 }); // release full thrust
+          if (!autopilotEnabled) setControls({ throttle: 0 });
           break;
       }
     };
@@ -97,7 +110,7 @@ export function ControlPanel({
             disabled={autopilotEnabled || status === 'landed' || status === 'crashed'}
             className="cursor-pointer"
           />
-          <div className="text-[10px] text-slate-500 font-mono mt-1 text-center">W / S to adjust, SPACE for max</div>
+          <div className="text-[10px] text-slate-500 font-mono mt-1 text-center">W/S or ↑/↓ to adjust, SPACE for max</div>
         </div>
 
         {/* Gimbal Control */}
@@ -115,7 +128,7 @@ export function ControlPanel({
             disabled={autopilotEnabled || status === 'landed' || status === 'crashed'}
             className="cursor-pointer"
           />
-          <div className="text-[10px] text-slate-500 font-mono mt-1 text-center">A / D to steer</div>
+          <div className="text-[10px] text-slate-500 font-mono mt-1 text-center">A/D or ←/→ to steer</div>
         </div>
       </div>
 
