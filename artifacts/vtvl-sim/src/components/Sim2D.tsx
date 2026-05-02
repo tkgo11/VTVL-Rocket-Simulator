@@ -1,8 +1,9 @@
 import { useEffect, useRef } from 'react';
-import { PhysicsState, CONSTANTS } from '../lib/physics';
+import { MissionConfig, PhysicsState, CONSTANTS } from '../lib/physics';
 
 interface Sim2DProps {
   state: PhysicsState;
+  mission: MissionConfig;
 }
 
 interface Particle {
@@ -22,14 +23,16 @@ interface Star {
   twinkle: number;
 }
 
-export function Sim2D({ state }: Sim2DProps) {
+export function Sim2D({ state, mission }: Sim2DProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const stateRef = useRef(state);
+  const missionRef = useRef(mission);
   const particlesRef = useRef<Particle[]>([]);
   const starsRef = useRef<Star[]>([]);
 
   // Keep latest state for the rAF loop without re-running setup.
   stateRef.current = state;
+  missionRef.current = mission;
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -72,42 +75,59 @@ export function Sim2D({ state }: Sim2DProps) {
       const dt = Math.min(0.05, (now - last) / 1000);
       last = now;
       const s = stateRef.current;
+      const m = missionRef.current;
 
       const w = canvas.clientWidth;
       const h = canvas.clientHeight;
 
-      // World -> screen scale (pixels per meter). Adjust based on altitude
-      // so high altitude zooms out, low altitude zooms in for landing.
+      // World -> screen scale (pixels per meter). Scale down when high or
+      // when the pad is far from origin so both rocket and pad stay framed.
       const baseScale = 4;
-      const altZoom = Math.max(0.6, Math.min(1.4, 1 - s.y / 800));
-      const scale = baseScale * altZoom;
+      const padDistance = Math.max(Math.abs(s.x), Math.abs(m.targetPadX - s.x));
+      const altZoom = Math.max(0.35, Math.min(1.4, 1 - s.y / 800));
+      const padZoom = Math.max(0.4, Math.min(1, 220 / Math.max(220, padDistance + 60)));
+      const scale = baseScale * Math.min(altZoom, padZoom);
 
       // Camera Y: keep rocket around 55% from the top, but clamp so the
       // ground is always anchored near the bottom 15% when we land.
-      const groundScreenY = h - 80; // where ground meets screen at low alt
+      const groundScreenY = h - 80;
       const followCamY = h * 0.55 + s.y * scale;
       const camY = Math.max(groundScreenY, followCamY);
-      const xOffset = w / 2 - s.x * scale * 0.5; // gentle horizontal follow
+      // Horizontally bias the camera toward the midpoint of rocket and pad.
+      const focusX = (s.x + m.targetPadX) / 2;
+      const xOffset = w / 2 - focusX * scale;
 
-      // Sky gradient
+      // Sky gradient (lighter / dustier on Mars, dark on the moon, blueish on Earth)
       const sky = ctx.createLinearGradient(0, 0, 0, h);
-      sky.addColorStop(0, '#020617');
-      sky.addColorStop(0.5, '#0b1220');
-      sky.addColorStop(1, '#0f172a');
+      if (m.id === 'martian_touchdown') {
+        sky.addColorStop(0, '#1a0f08');
+        sky.addColorStop(0.5, '#3b1f0f');
+        sky.addColorStop(1, '#5a2c14');
+      } else if (m.id === 'lunar_whisper') {
+        sky.addColorStop(0, '#000000');
+        sky.addColorStop(1, '#020207');
+      } else {
+        sky.addColorStop(0, '#020617');
+        sky.addColorStop(0.5, '#0b1220');
+        sky.addColorStop(1, '#0f172a');
+      }
       ctx.fillStyle = sky;
       ctx.fillRect(0, 0, w, h);
 
-      // Stars
-      ctx.fillStyle = '#e2e8f0';
-      for (const star of starsRef.current) {
-        star.twinkle += dt * 2;
-        const a = 0.5 + 0.5 * Math.sin(star.twinkle);
-        ctx.globalAlpha = 0.35 + 0.5 * a;
-        ctx.beginPath();
-        ctx.arc(star.x, star.y, star.size, 0, Math.PI * 2);
-        ctx.fill();
+      // Stars (no atmosphere on the moon -> brighter; daytime mars hides them).
+      const starAlpha = m.id === 'martian_touchdown' ? 0 : m.id === 'lunar_whisper' ? 1.0 : 0.85;
+      if (starAlpha > 0) {
+        ctx.fillStyle = '#e2e8f0';
+        for (const star of starsRef.current) {
+          star.twinkle += dt * 2;
+          const a = 0.5 + 0.5 * Math.sin(star.twinkle);
+          ctx.globalAlpha = (0.35 + 0.5 * a) * starAlpha;
+          ctx.beginPath();
+          ctx.arc(star.x, star.y, star.size, 0, Math.PI * 2);
+          ctx.fill();
+        }
+        ctx.globalAlpha = 1;
       }
-      ctx.globalAlpha = 1;
 
       // Distant horizon glow
       const glow = ctx.createLinearGradient(0, camY - 200, 0, camY + 50);
@@ -117,7 +137,7 @@ export function Sim2D({ state }: Sim2DProps) {
       ctx.fillRect(0, camY - 200, w, 250);
 
       // Mountains silhouette
-      ctx.fillStyle = '#0a0f1c';
+      ctx.fillStyle = m.id === 'martian_touchdown' ? '#2a160a' : m.id === 'lunar_whisper' ? '#0a0a14' : '#0a0f1c';
       ctx.beginPath();
       ctx.moveTo(0, camY);
       const mountainSeed = [0.1, 0.18, 0.28, 0.4, 0.55, 0.62, 0.7, 0.82, 0.92, 1];
@@ -131,32 +151,88 @@ export function Sim2D({ state }: Sim2DProps) {
 
       // Ground
       const groundGrad = ctx.createLinearGradient(0, camY, 0, h);
-      groundGrad.addColorStop(0, '#1e293b');
-      groundGrad.addColorStop(1, '#0f172a');
+      if (m.id === 'martian_touchdown') {
+        groundGrad.addColorStop(0, '#5a2c14');
+        groundGrad.addColorStop(1, '#2a120a');
+      } else if (m.id === 'lunar_whisper') {
+        groundGrad.addColorStop(0, '#2a2a35');
+        groundGrad.addColorStop(1, '#101018');
+      } else {
+        groundGrad.addColorStop(0, '#1e293b');
+        groundGrad.addColorStop(1, '#0f172a');
+      }
       ctx.fillStyle = groundGrad;
       ctx.fillRect(0, camY, w, h - camY);
 
-      // Pad
-      const padW = 50 * scale;
-      const padX = xOffset - padW / 2;
+      // Origin marker (where the rocket spawned at x=0)
+      if (Math.abs(m.targetPadX) > 1) {
+        const originScreenX = xOffset;
+        ctx.strokeStyle = '#334155';
+        ctx.lineWidth = 1;
+        ctx.setLineDash([3, 3]);
+        ctx.beginPath();
+        ctx.moveTo(originScreenX, camY - 6);
+        ctx.lineTo(originScreenX, camY + 6);
+        ctx.stroke();
+        ctx.setLineDash([]);
+      }
+
+      // Pad (positioned at mission.targetPadX)
+      const padCenterX = xOffset + m.targetPadX * scale;
+      const padW = m.padRadius * 2 * scale;
+      const padX = padCenterX - padW / 2;
       ctx.fillStyle = '#475569';
       ctx.fillRect(padX, camY - 4, padW, 8);
       // Pad markings
       ctx.strokeStyle = '#fbbf24';
       ctx.lineWidth = 2;
       ctx.beginPath();
-      ctx.moveTo(padX + 10, camY - 1);
-      ctx.lineTo(padX + padW - 10, camY - 1);
+      ctx.moveTo(padX + 6, camY - 1);
+      ctx.lineTo(padX + padW - 6, camY - 1);
       ctx.stroke();
       // Pad center crosshair
       ctx.strokeStyle = '#e2e8f0';
       ctx.lineWidth = 1.5;
       ctx.beginPath();
-      ctx.moveTo(xOffset - padW * 0.18, camY - 1);
-      ctx.lineTo(xOffset + padW * 0.18, camY - 1);
-      ctx.moveTo(xOffset, camY - 6);
-      ctx.lineTo(xOffset, camY + 4);
+      ctx.moveTo(padCenterX - padW * 0.18, camY - 1);
+      ctx.lineTo(padCenterX + padW * 0.18, camY - 1);
+      ctx.moveTo(padCenterX, camY - 6);
+      ctx.lineTo(padCenterX, camY + 4);
       ctx.stroke();
+
+      // Pad label
+      ctx.font = '10px ui-monospace, Menlo, monospace';
+      ctx.fillStyle = '#fbbf24';
+      ctx.textAlign = 'center';
+      ctx.fillText('TARGET', padCenterX, camY - 12);
+      ctx.textAlign = 'start';
+
+      // Wind indicator (top-center)
+      if (m.wind !== 0 || m.windGust !== 0) {
+        const wx = w / 2;
+        const wy = 28;
+        const arrowLen = Math.min(80, Math.abs(s.windNow) * 6 + 10);
+        const dir = s.windNow >= 0 ? 1 : -1;
+        ctx.strokeStyle = 'rgba(148,163,184,0.7)';
+        ctx.fillStyle = 'rgba(148,163,184,0.7)';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(wx - (arrowLen / 2) * dir, wy);
+        ctx.lineTo(wx + (arrowLen / 2) * dir, wy);
+        ctx.stroke();
+        // Arrowhead
+        ctx.beginPath();
+        ctx.moveTo(wx + (arrowLen / 2) * dir, wy);
+        ctx.lineTo(wx + (arrowLen / 2 - 6) * dir, wy - 4);
+        ctx.lineTo(wx + (arrowLen / 2 - 6) * dir, wy + 4);
+        ctx.closePath();
+        ctx.fill();
+        ctx.font = '10px ui-monospace, Menlo, monospace';
+        ctx.fillStyle = '#94a3b8';
+        ctx.textAlign = 'center';
+        ctx.fillText(`WIND ${s.windNow.toFixed(1)} m/s`, wx, wy + 16);
+        ctx.textAlign = 'start';
+      }
 
       // Altitude ladder on right side
       ctx.font = '10px ui-monospace, Menlo, monospace';
@@ -168,7 +244,7 @@ export function Sim2D({ state }: Sim2DProps) {
       ctx.moveTo(ladderX, 60);
       ctx.lineTo(ladderX, h - 60);
       ctx.stroke();
-      const tickSpacing = 50; // meters between ticks
+      const tickSpacing = m.startAltitude > 800 ? 200 : m.startAltitude > 300 ? 100 : 50;
       const startAlt = Math.floor((s.y - h / (2 * scale)) / tickSpacing) * tickSpacing;
       for (let alt = startAlt; alt < startAlt + h / scale + tickSpacing; alt += tickSpacing) {
         if (alt < 0) continue;

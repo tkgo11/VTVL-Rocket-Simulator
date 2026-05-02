@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import { useEffect } from 'react';
 import { Controls } from '../lib/physics';
 import { Button } from './ui/button';
 import { Slider } from './ui/slider';
@@ -11,6 +11,8 @@ interface ControlPanelProps {
   autopilotEnabled: boolean;
   setAutopilotEnabled: (enabled: boolean) => void;
   status: string;
+  launchLabel?: string;
+  onBackToMissions?: () => void;
 }
 
 export function ControlPanel({
@@ -20,19 +22,22 @@ export function ControlPanel({
   reset,
   autopilotEnabled,
   setAutopilotEnabled,
-  status
+  status,
+  launchLabel = 'Launch',
+  onBackToMissions,
 }: ControlPanelProps) {
-  
+
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      const k = e.key.toLowerCase();
       if (status === 'landed' || status === 'crashed') {
-        if (e.key.toLowerCase() === 'r') reset();
+        if (k === 'r') reset();
+        if (k === 'm' && onBackToMissions) onBackToMissions();
         return;
       }
 
       if (e.repeat) return;
 
-      const k = e.key.toLowerCase();
       switch (k) {
         case 'w':
         case 'arrowup':
@@ -64,6 +69,9 @@ export function ControlPanel({
         case 'r':
           reset();
           break;
+        case 'm':
+          if (onBackToMissions) onBackToMissions();
+          break;
       }
     };
 
@@ -90,11 +98,11 @@ export function ControlPanel({
       window.removeEventListener('keydown', handleKeyDown);
       window.removeEventListener('keyup', handleKeyUp);
     };
-  }, [controls, setControls, autopilotEnabled, setAutopilotEnabled, reset, status]);
+  }, [controls, setControls, autopilotEnabled, setAutopilotEnabled, reset, status, onBackToMissions]);
 
   return (
     <div className="absolute bottom-6 left-1/2 -translate-x-1/2 w-full max-w-2xl bg-black/80 backdrop-blur-md border border-slate-800 rounded-xl p-6 shadow-2xl flex flex-col gap-6">
-      
+
       <div className="flex items-center justify-between gap-8">
         {/* Throttle Control */}
         <div className="flex-1 flex flex-col gap-2">
@@ -135,27 +143,37 @@ export function ControlPanel({
       <div className="flex justify-center gap-4 border-t border-slate-800 pt-4">
         {status === 'armed' ? (
           <Button onClick={launch} className="bg-amber-600 hover:bg-amber-500 text-white font-bold tracking-wider uppercase px-8">
-            Launch
+            {launchLabel}
           </Button>
         ) : (
           <Button onClick={reset} variant="outline" className="border-slate-700 text-slate-300 hover:bg-slate-800 font-bold tracking-wider uppercase px-8">
             Reset (R)
           </Button>
         )}
-        
-        <Button 
+
+        <Button
           onClick={() => setAutopilotEnabled(!autopilotEnabled)}
           variant={autopilotEnabled ? "default" : "outline"}
           className={`font-bold tracking-wider uppercase px-8 ${
-            autopilotEnabled 
-              ? 'bg-primary text-primary-foreground hover:bg-primary/90' 
+            autopilotEnabled
+              ? 'bg-primary text-primary-foreground hover:bg-primary/90'
               : 'border-slate-700 text-slate-300 hover:bg-slate-800'
           }`}
         >
           Autopilot {autopilotEnabled ? 'ON' : 'OFF'} (P)
         </Button>
+
+        {onBackToMissions && (
+          <Button
+            onClick={onBackToMissions}
+            variant="ghost"
+            className="text-slate-400 hover:text-white hover:bg-slate-800 font-bold tracking-wider uppercase px-6"
+          >
+            Missions (M)
+          </Button>
+        )}
       </div>
-      
+
     </div>
   );
 }
