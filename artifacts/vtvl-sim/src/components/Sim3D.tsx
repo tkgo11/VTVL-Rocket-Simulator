@@ -1,6 +1,6 @@
-import React, { useRef, useMemo } from 'react';
+import { useRef } from 'react';
 import { Canvas, useFrame } from '@react-three/fiber';
-import { Stars, OrbitControls, Sparkles, Sky } from '@react-three/drei';
+import { Stars, Sparkles, Sky, Grid } from '@react-three/drei';
 import * as THREE from 'three';
 import { PhysicsState, CONSTANTS } from '../lib/physics';
 
@@ -95,18 +95,48 @@ export function Sim3D({ state }: Sim3DProps) {
           color="#fff5e6"
         />
         
-        <Stars radius={100} depth={50} count={5000} factor={4} saturation={0} fade speed={1} />
-        
+        {/* Atmospheric sky dome (dusk colors so the amber accent reads well). */}
+        <Sky
+          distance={4500}
+          sunPosition={[80, 12, 100]}
+          inclination={0.49}
+          azimuth={0.25}
+          mieCoefficient={0.005}
+          mieDirectionalG={0.85}
+          rayleigh={2}
+          turbidity={8}
+        />
+        <Stars radius={300} depth={80} count={4000} factor={5} saturation={0} fade speed={1} />
+
         {/* Ground */}
         <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0, 0]} receiveShadow>
-          <planeGeometry args={[1000, 1000]} />
-          <meshStandardMaterial color="#1e293b" />
+          <planeGeometry args={[2000, 2000]} />
+          <meshStandardMaterial color="#0f172a" />
         </mesh>
-        
+
+        {/* Reference grid centered on the launch pad */}
+        <Grid
+          position={[0, 0.05, 0]}
+          args={[400, 400]}
+          cellSize={5}
+          cellThickness={0.6}
+          cellColor="#1e293b"
+          sectionSize={25}
+          sectionThickness={1.2}
+          sectionColor="#f59e0b"
+          fadeDistance={300}
+          fadeStrength={1.2}
+          infiniteGrid
+        />
+
         {/* Pad */}
         <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.1, 0]} receiveShadow>
           <circleGeometry args={[25, 32]} />
           <meshStandardMaterial color="#475569" />
+        </mesh>
+        <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.11, 0]}>
+          <ringGeometry args={[22, 24, 64]} />
+          <meshBasicMaterial color="#f59e0b" />
         </mesh>
 
         <Rocket state={state} />
