@@ -1,10 +1,25 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { useSimulation } from '../hooks/useSimulation';
 import { Sim2D } from '../components/Sim2D';
 import { Sim3D } from '../components/Sim3D';
 import { HUD } from '../components/HUD';
 import { ControlPanel } from '../components/ControlPanel';
 import { ModeToggle } from '../components/ModeToggle';
+
+function detectWebGL(): boolean {
+  if (typeof window === 'undefined') return false;
+  try {
+    const canvas = document.createElement('canvas');
+    return !!(
+      window.WebGLRenderingContext &&
+      (canvas.getContext('webgl2') || canvas.getContext('webgl'))
+    );
+  } catch {
+    return false;
+  }
+}
+
+const HAS_WEBGL = detectWebGL();
 
 export default function Simulator() {
   const { 
@@ -18,7 +33,7 @@ export default function Simulator() {
     fps 
   } = useSimulation();
 
-  const [mode, setMode] = useState<'2d' | '3d'>('3d');
+  const [mode, setMode] = useState<'2d' | '3d'>(HAS_WEBGL ? '3d' : '2d');
 
   return (
     <div className="relative w-full h-screen overflow-hidden bg-black selection:bg-amber-500/30">
