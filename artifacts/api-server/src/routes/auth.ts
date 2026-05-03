@@ -57,7 +57,7 @@ router.post("/auth/register", async (req, res) => {
     });
 
     const token = uuidv4();
-    setSession(token, { userId, username, email: email.toLowerCase() });
+    await setSession(token, { userId, username, email: email.toLowerCase() });
 
     res.cookie(SESSION_COOKIE, token, {
       httpOnly: true,
@@ -100,7 +100,7 @@ router.post("/auth/login", async (req, res) => {
     }
 
     const token = uuidv4();
-    setSession(token, {
+    await setSession(token, {
       userId: user.id,
       username: user.username,
       email: user.email,
@@ -123,9 +123,9 @@ router.post("/auth/login", async (req, res) => {
   }
 });
 
-router.post("/auth/logout", (req, res) => {
+router.post("/auth/logout", async (req, res) => {
   const token = req.cookies?.[SESSION_COOKIE];
-  if (token) deleteSession(token);
+  if (token) await deleteSession(token);
   res.clearCookie(SESSION_COOKIE);
   return res.json({ ok: true });
 });

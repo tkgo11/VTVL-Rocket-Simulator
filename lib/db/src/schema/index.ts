@@ -1,4 +1,4 @@
-import { pgTable, text, integer, real, boolean, timestamp, pgEnum } from "drizzle-orm/pg-core";
+import { pgTable, text, integer, real, boolean, timestamp, pgEnum, bigint, primaryKey } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 
@@ -19,6 +19,18 @@ export const insertUserSchema = createInsertSchema(usersTable).omit({ createdAt:
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type User = typeof usersTable.$inferSelect;
 
+// ---- Sessions ----
+export const sessionsTable = pgTable("sessions", {
+  token: text("token").primaryKey(),
+  userId: text("user_id").notNull().references(() => usersTable.id, { onDelete: "cascade" }),
+  username: text("username").notNull(),
+  email: text("email").notNull(),
+  expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+export type Session = typeof sessionsTable.$inferSelect;
+
 // ---- Rooms ----
 export const roomsTable = pgTable("rooms", {
   id: text("id").primaryKey(),
@@ -27,6 +39,9 @@ export const roomsTable = pgTable("rooms", {
   missionId: text("mission_id").notNull(),
   status: roomStatusEnum("status").notNull().default("lobby"),
   hostId: text("host_id").notNull(),
+  hostSecret: text("host_secret"),
+  currentMissionId: text("current_mission_id"),
+  currentSeed: bigint("current_seed", { mode: "number" }),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   endedAt: timestamp("ended_at", { withTimezone: true }),
 });
@@ -34,6 +49,30 @@ export const roomsTable = pgTable("rooms", {
 export const insertRoomSchema = createInsertSchema(roomsTable).omit({ createdAt: true, endedAt: true });
 export type InsertRoom = z.infer<typeof insertRoomSchema>;
 export type Room = typeof roomsTable.$inferSelect;
+
+// ---- Room players (persisted snapshot for restart hydration) ----
+export const roomPlayersTable = pgTable(
+  "room_players",
+  {
+    roomId: text("room_id").notNull().references(() => roomsTable.id, { onDelete: "cascade" }),
+    playerId: text("player_id").notNull(),
+    displayName: text("display_name").notNull(),
+    userId: text("user_id"),
+    role: participantRoleEnum("role").notNull(),
+    ready: boolean("ready").notNull().default(false),
+    finished: boolean("finished").notNull().default(false),
+    score: integer("score"),
+    grade: text("grade"),
+    crashed: boolean("crashed"),
+    reconnectSecret: text("reconnect_secret").notNull(),
+    joinedAt: timestamp("joined_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => ({
+    pk: primaryKey({ columns: [t.roomId, t.playerId] }),
+  }),
+);
+
+export type RoomPlayerRow = typeof roomPlayersTable.$inferSelect;
 
 // ---- Runs ----
 export const runsTable = pgTable("runs", {

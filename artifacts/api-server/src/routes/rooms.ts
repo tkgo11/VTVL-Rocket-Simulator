@@ -61,6 +61,7 @@ router.post("/rooms", async (req, res) => {
       missionId,
       status: "lobby",
       hostId,
+      hostSecret,
     });
 
     createActiveRoom(roomId, code, type as "coop" | "versus", missionId, hostId, hostSecret);

@@ -17,6 +17,8 @@ import {
   checkAllFinished,
   getRoundResults,
   endRound,
+  savePlayer,
+  saveRoom,
   type RoomPlayer,
   type RocketState,
 } from "./roomManager";
@@ -200,7 +202,7 @@ function handleMessage(
         if (existing.disconnected) {
           logger.info({ roomCode: code, playerId }, "Fresh rejoin over disconnected slot — cancelling eviction timer");
           cancelDisconnectTimer(playerId);
-        } else {
+        } else if (existing.ws) {
           logger.info({ roomCode: code, playerId }, "Replacing duplicate active socket for same player");
           // Unlink the old WS from wsToRoom BEFORE closing it so the close-event's
           // handlePlayerDisconnect call finds no entry and exits early, preventing
@@ -268,6 +270,7 @@ function handleMessage(
       const { room, player } = entry;
 
       player.ready = msg.ready;
+      savePlayer(room, player);
       broadcastToRoom(room, {
         type: "player_ready_changed",
         playerId: player.id,
@@ -298,6 +301,7 @@ function handleMessage(
         p.grade = undefined;
         p.crashed = undefined;
         p.ready = false;
+        savePlayer(room, p);
       }
 
       // Pick a deterministic seed (ms timestamp) and store it so late joiners
@@ -305,6 +309,7 @@ function handleMessage(
       const seed = Date.now();
       room.currentMissionId = room.missionId;
       room.currentSeed = seed;
+      saveRoom(room);
 
       broadcastToRoom(room, {
         type: "round_starting",
@@ -336,6 +341,7 @@ function handleMessage(
       player.score = msg.score;
       player.grade = msg.grade;
       player.crashed = msg.crashed;
+      savePlayer(room, player);
 
       broadcastToRoom(room, {
         type: "player_result",
