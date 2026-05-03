@@ -1,8 +1,11 @@
-import { useRef } from 'react';
-import { Canvas, useFrame } from '@react-three/fiber';
-import { Stars, Sparkles, Sky, Grid } from '@react-three/drei';
-import * as THREE from 'three';
-import { MissionConfig, PhysicsState, VehicleConfig, DEFAULT_VEHICLE, CONSTANTS } from '../lib/physics';
+import { useState } from 'react';
+import { Canvas } from '@react-three/fiber';
+import { MissionConfig, PhysicsState, VehicleConfig, DEFAULT_VEHICLE } from '../lib/physics';
+import { getPlanetTheme } from './sim3d/theme';
+import { Rocket } from './sim3d/Rocket';
+import { Pad } from './sim3d/Pad';
+import { Environment } from './sim3d/Environment';
+import { CameraRig, CameraMode } from './sim3d/CameraRig';
 
 interface Sim3DProps {
   state: PhysicsState;
@@ -10,180 +13,51 @@ interface Sim3DProps {
   vehicle?: VehicleConfig;
 }
 
-function Rocket({ state, vehicle }: { state: PhysicsState; vehicle: VehicleConfig }) {
-  const groupRef = useRef<THREE.Group>(null);
-  const nozzleRef = useRef<THREE.Mesh>(null);
-  const maxGimbalRad = vehicle.maxGimbalDeg * (Math.PI / 180);
-
-  useFrame(() => {
-    if (groupRef.current) {
-      groupRef.current.position.set(state.x, state.y + CONSTANTS.LENGTH / 2, 0);
-      groupRef.current.rotation.z = -state.angle;
-    }
-    if (nozzleRef.current) {
-      nozzleRef.current.rotation.z = state.gimbal * maxGimbalRad;
-    }
-  });
-
-  const isThrusting = state.throttle > 0 && state.status !== 'landed' && state.status !== 'crashed';
-
-  return (
-    <group ref={groupRef}>
-      {/* Body */}
-      <mesh position={[0, 0, 0]}>
-        <cylinderGeometry args={[CONSTANTS.DIAMETER/2, CONSTANTS.DIAMETER/2, CONSTANTS.LENGTH, 32]} />
-        <meshStandardMaterial color="#f8fafc" />
-      </mesh>
-
-      {/* Nose cone */}
-      <mesh position={[0, CONSTANTS.LENGTH/2 + 2, 0]}>
-        <coneGeometry args={[CONSTANTS.DIAMETER/2, 4, 32]} />
-        <meshStandardMaterial color="#f8fafc" />
-      </mesh>
-
-      {/* Nozzle Group */}
-      <group ref={nozzleRef} position={[0, -CONSTANTS.LENGTH/2, 0]}>
-        <mesh position={[0, -1, 0]}>
-          <cylinderGeometry args={[1.5, 2, 2, 16]} />
-          <meshStandardMaterial color="#334155" />
-        </mesh>
-
-        {isThrusting && (
-          <>
-            <pointLight
-              position={[0, -2, 0]}
-              color="#f59e0b"
-              intensity={state.throttle * 5}
-              distance={100}
-            />
-            <Sparkles
-              position={[0, -10, 0]}
-              count={200}
-              scale={[3, 20, 3]}
-              color="#f59e0b"
-              size={10}
-              speed={0.4}
-              opacity={state.throttle}
-            />
-          </>
-        )}
-      </group>
-    </group>
-  );
-}
-
-function CameraTracker({ state, mission }: { state: PhysicsState; mission: MissionConfig }) {
-  useFrame((sceneState) => {
-    // Aim the camera at the midpoint between the rocket and the target pad
-    // so both stay framed during long crosswind translations.
-    const focusX = (state.x + mission.targetPadX) / 2;
-    const focusY = state.y + CONSTANTS.LENGTH / 2;
-    const lateralSpread = Math.abs(state.x - mission.targetPadX);
-    const distance = 60 + lateralSpread * 0.6;
-
-    sceneState.camera.position.lerp(
-      new THREE.Vector3(focusX + distance, focusY + 10, distance),
-      0.1,
-    );
-    sceneState.camera.lookAt(state.x, focusY, 0);
-  });
-  return null;
-}
-
-function Pad({ mission }: { mission: MissionConfig }) {
-  const radius = mission.padRadius;
-  return (
-    <group position={[mission.targetPadX, 0, 0]}>
-      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.1, 0]} receiveShadow>
-        <circleGeometry args={[radius, 32]} />
-        <meshStandardMaterial color="#475569" />
-      </mesh>
-      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.11, 0]}>
-        <ringGeometry args={[radius - 3, radius - 1, 64]} />
-        <meshBasicMaterial color="#f59e0b" />
-      </mesh>
-    </group>
-  );
-}
-
-interface PlanetTheme {
-  ground: string;
-  ambient: number;
-  sun: string;
-  hasSky: boolean;
-  hasStars: boolean;
-}
-
-function getPlanetTheme(mission: MissionConfig): PlanetTheme {
-  if (mission.id === 'martian_touchdown') {
-    return { ground: '#5a2c14', ambient: 0.25, sun: '#ffd0a0', hasSky: true, hasStars: false };
-  }
-  if (mission.id === 'lunar_whisper') {
-    return { ground: '#2a2a35', ambient: 0.05, sun: '#ffffff', hasSky: false, hasStars: true };
-  }
-  return { ground: '#0f172a', ambient: 0.2, sun: '#fff5e6', hasSky: true, hasStars: true };
-}
+const CAMERA_MODES: { id: CameraMode; label: string }[] = [
+  { id: 'tracking', label: 'Tracking' },
+  { id: 'chase', label: 'Chase' },
+  { id: 'orbit', label: 'Orbit' },
+];
 
 export function Sim3D({ state, mission, vehicle = DEFAULT_VEHICLE }: Sim3DProps) {
   const theme = getPlanetTheme(mission);
+  const [cameraMode, setCameraMode] = useState<CameraMode>('tracking');
 
   return (
     <div
       className="absolute inset-0"
-      style={{ background: theme.hasSky ? '#060B19' : '#000000' }}
+      style={{ background: theme.background }}
     >
-      <Canvas shadows>
-        <CameraTracker state={state} mission={mission} />
-
-        <ambientLight intensity={theme.ambient} />
-        <directionalLight
-          position={[100, 100, 50]}
-          intensity={1}
-          castShadow
-          color={theme.sun}
-        />
-
-        {theme.hasSky && (
-          <Sky
-            distance={4500}
-            sunPosition={[80, 12, 100]}
-            inclination={0.49}
-            azimuth={0.25}
-            mieCoefficient={0.005}
-            mieDirectionalG={0.85}
-            rayleigh={mission.id === 'martian_touchdown' ? 4 : 2}
-            turbidity={mission.id === 'martian_touchdown' ? 14 : 8}
-          />
-        )}
-        {theme.hasStars && (
-          <Stars radius={300} depth={80} count={4000} factor={5} saturation={0} fade speed={1} />
-        )}
-
-        {/* Ground */}
-        <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0, 0]} receiveShadow>
-          <planeGeometry args={[2000, 2000]} />
-          <meshStandardMaterial color={theme.ground} />
-        </mesh>
-
-        {/* Reference grid centered on the launch origin */}
-        <Grid
-          position={[0, 0.05, 0]}
-          args={[400, 400]}
-          cellSize={5}
-          cellThickness={0.6}
-          cellColor="#1e293b"
-          sectionSize={25}
-          sectionThickness={1.2}
-          sectionColor="#f59e0b"
-          fadeDistance={300}
-          fadeStrength={1.2}
-          infiniteGrid
-        />
-
-        <Pad mission={mission} />
-
+      <Canvas
+        shadows
+        dpr={[1, 1.75]}
+        camera={{ position: [60, 30, 60], fov: 50, near: 0.5, far: 5000 }}
+      >
+        <Environment theme={theme} />
+        <CameraRig mode={cameraMode} state={state} mission={mission} />
+        <Pad mission={mission} state={state} />
         <Rocket state={state} vehicle={vehicle} />
       </Canvas>
+
+      {/* Camera mode selector. Placed bottom-left so it doesn't collide with
+          the mode toggle, settings panel, and wind panel at the top-right,
+          or the telemetry HUD at top-left. */}
+      <div className="absolute bottom-4 left-4 z-20 flex gap-1 rounded-md bg-slate-900/75 p-1 backdrop-blur-sm border border-slate-700/60 shadow-lg">
+        {CAMERA_MODES.map((m) => (
+          <button
+            key={m.id}
+            onClick={() => setCameraMode(m.id)}
+            className={
+              'px-2.5 py-1 text-[11px] font-mono uppercase tracking-wider rounded-sm transition-colors ' +
+              (cameraMode === m.id
+                ? 'bg-amber-500 text-slate-900'
+                : 'text-slate-300 hover:bg-slate-700/70')
+            }
+          >
+            {m.label}
+          </button>
+        ))}
+      </div>
     </div>
   );
 }
