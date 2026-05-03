@@ -37,7 +37,7 @@ export function Sim3D({ state, mission, vehicle = DEFAULT_VEHICLE }: Sim3DProps)
         <Environment theme={theme} />
         <CameraRig mode={cameraMode} state={state} mission={mission} />
         <Pad mission={mission} state={state} />
-        <GroundFX state={state} theme={theme} />
+        <GroundFX state={state} mission={mission} theme={theme} />
         <Rocket state={state} vehicle={vehicle} />
       </Canvas>
 

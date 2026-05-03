@@ -16,6 +16,11 @@ export interface PlanetTheme {
   hasStars: boolean;
   rayleigh: number;
   turbidity: number;
+  // Color of the dust kicked up by the engine plume near the surface.
+  // Lives on the theme so each planet keeps a coherent palette (rusty on
+  // Mars, grey on the Moon, light tan on Earth) and ground-FX code doesn't
+  // have to reverse-engineer it from `ground`.
+  dust: string;
 }
 
 export function getPlanetTheme(mission: MissionConfig): PlanetTheme {
@@ -36,6 +41,7 @@ export function getPlanetTheme(mission: MissionConfig): PlanetTheme {
       hasStars: false,
       rayleigh: 4,
       turbidity: 14,
+      dust: '#c87a4a',
     };
   }
   if (mission.id === 'lunar_whisper') {
@@ -55,6 +61,7 @@ export function getPlanetTheme(mission: MissionConfig): PlanetTheme {
       hasStars: true,
       rayleigh: 0,
       turbidity: 0,
+      dust: '#9aa0a8',
     };
   }
   return {
@@ -73,5 +80,6 @@ export function getPlanetTheme(mission: MissionConfig): PlanetTheme {
     hasStars: true,
     rayleigh: 2,
     turbidity: 8,
+    dust: '#c8b88a',
   };
 }
