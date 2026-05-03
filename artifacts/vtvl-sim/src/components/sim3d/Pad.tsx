@@ -68,8 +68,8 @@ export function Pad({ mission, state }: PadProps) {
 
   return (
     <group position={[mission.targetPadX, 0, 0]}>
-      {/* Deck plating disc */}
-      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.05, 0]} material={mats.deck} receiveShadow>
+      {/* Deck plating disc — cylinders are already Y-up, no rotation needed. */}
+      <mesh position={[0, 0.05, 0]} material={mats.deck} receiveShadow castShadow>
         <cylinderGeometry args={[radius, radius, 0.4, 48]} />
       </mesh>
       {/* Deck rim */}
