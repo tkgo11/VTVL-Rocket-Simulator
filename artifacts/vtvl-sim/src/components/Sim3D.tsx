@@ -6,6 +6,7 @@ import { Rocket } from './sim3d/Rocket';
 import { Pad } from './sim3d/Pad';
 import { Environment } from './sim3d/Environment';
 import { CameraRig, CameraMode } from './sim3d/CameraRig';
+import { GroundFX } from './sim3d/GroundFX';
 
 interface Sim3DProps {
   state: PhysicsState;
@@ -36,6 +37,7 @@ export function Sim3D({ state, mission, vehicle = DEFAULT_VEHICLE }: Sim3DProps)
         <Environment theme={theme} />
         <CameraRig mode={cameraMode} state={state} mission={mission} />
         <Pad mission={mission} state={state} />
+        <GroundFX state={state} theme={theme} />
         <Rocket state={state} vehicle={vehicle} />
       </Canvas>
 
