@@ -21,8 +21,8 @@ export default function PlayerStats({ onBack }: Props) {
     setLoading(true);
     setError('');
     Promise.all([
-      api.players.stats(player.user.id, player.token),
-      api.players.runs(player.user.id, 25, player.token),
+      api.players.stats(player.user.id),
+      api.players.runs(player.user.id, 25),
     ])
       .then(([s, r]) => {
         setStats(s);

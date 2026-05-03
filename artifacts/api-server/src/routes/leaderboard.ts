@@ -53,7 +53,8 @@ router.post("/runs", async (req, res) => {
       return res.status(400).json({ error: "Flight duration implausibly short" });
     }
 
-    const token = req.cookies?.[SESSION_COOKIE] ?? (req.headers["x-session-token"] as string | undefined);
+    // Authentication is cookie-only; x-session-token header is not accepted.
+    const token = req.cookies?.[SESSION_COOKIE];
     const session = getSession(token);
 
     // Idempotency: if the client supplies a stable clientRunId (a UUID generated
@@ -134,10 +135,8 @@ router.get("/leaderboard", async (req, res) => {
       .orderBy(desc(leaderboardTable.score), desc(leaderboardTable.createdAt))
       .limit(limit);
 
-    // Resolve the requesting player's personal best for the same scope
-    // (mission filter included). Accounts are identified by session; guests
-    // are identified by their session-supplied display name.
-    const token = req.cookies?.[SESSION_COOKIE] ?? (req.headers["x-session-token"] as string | undefined);
+    // Authentication is cookie-only; x-session-token header is not accepted.
+    const token = req.cookies?.[SESSION_COOKIE];
     const session = getSession(token);
 
     let personalBest: {
@@ -206,7 +205,8 @@ router.get("/players/:userId/runs", async (req, res) => {
     const { userId } = req.params;
 
     // Run history is private — only the account owner may read it.
-    const token = req.cookies?.[SESSION_COOKIE] ?? (req.headers["x-session-token"] as string | undefined);
+    // Authentication is cookie-only; x-session-token header is not accepted.
+    const token = req.cookies?.[SESSION_COOKIE];
     const session = getSession(token);
     if (!session || session.userId !== userId) {
       return res.status(403).json({ error: "Forbidden" });

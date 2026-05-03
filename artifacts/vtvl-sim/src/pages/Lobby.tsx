@@ -27,7 +27,6 @@ export default function Lobby({ room: initialRoom, role, myPlayerId, hostSecret,
   const [midRoundEntered, setMidRoundEntered] = useState(false);
 
   const displayName = player?.displayName ?? `Pilot-${Math.random().toString(36).slice(-4)}`;
-  const token = player?.token;
 
   const mp = useMultiplayerSocket({
     onRoundStarting: (missionId, seed) => {
@@ -47,7 +46,8 @@ export default function Lobby({ room: initialRoom, role, myPlayerId, hostSecret,
 
   useEffect(() => {
     // Pass myPlayerId + hostSecret so the server can verify host authority (guest host fix).
-    mp.joinRoom(initialRoom.code, displayName, role, token, myPlayerId, hostSecret);
+    // Authentication via the HttpOnly cookie is handled automatically by the browser.
+    mp.joinRoom(initialRoom.code, displayName, role, myPlayerId, hostSecret);
     return () => { mp.disconnect(); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);

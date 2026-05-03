@@ -36,7 +36,7 @@ function AppInner() {
       // Navigate to multiplayer hub with pre-filled code — we'll auto-join via lobby
       // First we need the room info; hub will handle the join
       import('@/lib/api').then(({ api }) => {
-        api.rooms.get(roomCode.toUpperCase(), player?.token).then((room) => {
+        api.rooms.get(roomCode.toUpperCase()).then((room) => {
           setScreen({ name: 'lobby', room, role: 'player' });
         }).catch(() => {
           // Room not found or expired; go to hub
@@ -57,7 +57,7 @@ function AppInner() {
       window.history.replaceState({}, '', url.toString());
 
       import('@/lib/api').then(({ api }) => {
-        api.rooms.get(spectateCode.toUpperCase(), player?.token).then((room) => {
+        api.rooms.get(spectateCode.toUpperCase()).then((room) => {
           setScreen({ name: 'lobby', room, role: 'spectator' });
         }).catch(() => {
           setScreen({ name: 'multiplayer-hub' });

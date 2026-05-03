@@ -1,4 +1,5 @@
 import { Router } from "express";
+import rateLimit from "express-rate-limit";
 import bcrypt from "bcryptjs";
 import { v4 as uuidv4 } from "uuid";
 import { db } from "@workspace/db";
@@ -11,7 +12,21 @@ const router = Router();
 
 const SESSION_COOKIE = "vtvl_session";
 
-router.post("/auth/register", async (req, res) => {
+const MIN_PASSWORD_LENGTH = 12;
+
+// Limit login and registration attempts per IP to slow brute-force and
+// credential-stuffing attacks. Bcrypt operations are CPU-intensive, so
+// even moderate request rates can exhaust server resources.
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 10,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: "Too many attempts, please try again later" },
+  skipSuccessfulRequests: false,
+});
+
+router.post("/auth/register", authLimiter, async (req, res) => {
   try {
     const { username, email, password } = req.body as {
       username?: string;
@@ -22,8 +37,8 @@ router.post("/auth/register", async (req, res) => {
     if (!username || !email || !password) {
       return res.status(400).json({ error: "username, email and password are required" });
     }
-    if (password.length < 6) {
-      return res.status(400).json({ error: "Password must be at least 6 characters" });
+    if (password.length < MIN_PASSWORD_LENGTH) {
+      return res.status(400).json({ error: `Password must be at least ${MIN_PASSWORD_LENGTH} characters` });
     }
 
     const existing = await db
@@ -66,8 +81,9 @@ router.post("/auth/register", async (req, res) => {
       secure: process.env.NODE_ENV === "production",
     });
 
+    // Token is intentionally omitted from the response body.
+    // Authentication is handled exclusively via the HttpOnly session cookie.
     return res.json({
-      token,
       user: { id: userId, username, email: email.toLowerCase() },
     });
   } catch (err) {
@@ -76,7 +92,7 @@ router.post("/auth/register", async (req, res) => {
   }
 });
 
-router.post("/auth/login", async (req, res) => {
+router.post("/auth/login", authLimiter, async (req, res) => {
   try {
     const { email, password } = req.body as { email?: string; password?: string };
 
@@ -113,8 +129,9 @@ router.post("/auth/login", async (req, res) => {
       secure: process.env.NODE_ENV === "production",
     });
 
+    // Token is intentionally omitted from the response body.
+    // Authentication is handled exclusively via the HttpOnly session cookie.
     return res.json({
-      token,
       user: { id: user.id, username: user.username, email: user.email },
     });
   } catch (err) {
@@ -131,7 +148,8 @@ router.post("/auth/logout", async (req, res) => {
 });
 
 router.get("/auth/me", (req, res) => {
-  const token = req.cookies?.[SESSION_COOKIE] ?? req.headers["x-session-token"] as string;
+  // Authentication is cookie-only; the x-session-token header is no longer accepted.
+  const token = req.cookies?.[SESSION_COOKIE];
   const session = getSession(token);
   if (!session) {
     return res.json({ user: null });

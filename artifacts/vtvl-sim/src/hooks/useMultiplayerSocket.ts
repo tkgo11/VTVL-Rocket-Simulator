@@ -69,7 +69,7 @@ export interface UseMultiplayerSocketReturn {
   room: RoomInfo | null;
   myId: string | null;
   remotePlayers: Map<string, RemotePlayer>;
-  joinRoom: (roomCode: string, displayName: string, role?: 'player' | 'spectator', token?: string, playerId?: string, hostSecret?: string) => void;
+  joinRoom: (roomCode: string, displayName: string, role?: 'player' | 'spectator', playerId?: string, hostSecret?: string) => void;
   leaveRoom: () => void;
   sendRocketState: (state: RocketState) => void;
   setReady: (ready: boolean) => void;
@@ -93,7 +93,6 @@ export function useMultiplayerSocket(opts: MultiplayerSocketOptions = {}): UseMu
     roomCode: string;
     displayName: string;
     role: 'player' | 'spectator';
-    token?: string;
     playerId?: string;
     hostSecret?: string;
     reconnectSecret?: string;
@@ -223,9 +222,10 @@ export function useMultiplayerSocket(opts: MultiplayerSocketOptions = {}): UseMu
 
       // Re-join room if pending. Include playerId + reconnectSecret for guest reconnection
       // identity verification, and hostSecret for host authority claims.
+      // Authentication uses the HttpOnly session cookie sent with the WS upgrade — no token in message.
       if (pendingJoinRef.current) {
-        const { roomCode, displayName, role, token, playerId, hostSecret, reconnectSecret } = pendingJoinRef.current;
-        ws.send(JSON.stringify({ type: 'join_room', roomCode, displayName, role, token, playerId, hostSecret, reconnectSecret }));
+        const { roomCode, displayName, role, playerId, hostSecret, reconnectSecret } = pendingJoinRef.current;
+        ws.send(JSON.stringify({ type: 'join_room', roomCode, displayName, role, playerId, hostSecret, reconnectSecret }));
       }
 
       // Start heartbeat
@@ -269,17 +269,17 @@ export function useMultiplayerSocket(opts: MultiplayerSocketOptions = {}): UseMu
     roomCode: string,
     displayName: string,
     role: 'player' | 'spectator' = 'player',
-    token?: string,
     playerId?: string,
     hostSecret?: string,
   ) => {
     // reconnectSecret starts undefined; it will be populated from the server's
     // room_joined response so that future reconnects include the correct proof.
-    pendingJoinRef.current = { roomCode, displayName, role, token, playerId, hostSecret, reconnectSecret: undefined };
+    // Authentication uses the HttpOnly session cookie — no token is passed in the message.
+    pendingJoinRef.current = { roomCode, displayName, role, playerId, hostSecret, reconnectSecret: undefined };
     if (!wsRef.current || wsRef.current.readyState === WebSocket.CLOSED) {
       connect();
     } else if (wsRef.current.readyState === WebSocket.OPEN) {
-      wsRef.current.send(JSON.stringify({ type: 'join_room', roomCode, displayName, role, token, playerId, hostSecret }));
+      wsRef.current.send(JSON.stringify({ type: 'join_room', roomCode, displayName, role, playerId, hostSecret }));
     }
   }, [connect]);
 

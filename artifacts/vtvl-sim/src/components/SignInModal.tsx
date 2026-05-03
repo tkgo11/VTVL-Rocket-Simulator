@@ -9,6 +9,8 @@ interface Props {
 
 type Tab = 'signin' | 'signup';
 
+const MIN_PASSWORD_LENGTH = 12;
+
 export function SignInModal({ open, onClose }: Props) {
   const { login, register } = usePlayer();
   const [tab, setTab] = useState<Tab>('signin');
@@ -56,8 +58,8 @@ export function SignInModal({ open, onClose }: Props) {
         setError('Choose a pilot handle');
         return;
       }
-      if (password.length < 6) {
-        setError('Password must be at least 6 characters');
+      if (password.length < MIN_PASSWORD_LENGTH) {
+        setError(`Password must be at least ${MIN_PASSWORD_LENGTH} characters`);
         return;
       }
     }
@@ -157,10 +159,10 @@ export function SignInModal({ open, onClose }: Props) {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required
-              minLength={6}
+              minLength={tab === 'signup' ? MIN_PASSWORD_LENGTH : undefined}
               autoComplete={tab === 'signup' ? 'new-password' : 'current-password'}
               className="w-full bg-slate-800 border border-slate-700 rounded px-3 py-2 text-white text-sm focus:outline-none focus:border-amber-500"
-              placeholder={tab === 'signup' ? 'Min 6 characters' : '••••••••'}
+              placeholder={tab === 'signup' ? `Min ${MIN_PASSWORD_LENGTH} characters` : '••••••••'}
             />
           </div>
 

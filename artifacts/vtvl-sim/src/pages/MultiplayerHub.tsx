@@ -36,7 +36,7 @@ export default function MultiplayerHub({ onBack, onJoinRoom, initialView }: Prop
     setLoading(true);
     setError('');
     try {
-      const room = await api.rooms.create(roomType, missionId, displayName, player?.token);
+      const room = await api.rooms.create(roomType, missionId, displayName);
       setCreatedRoom(room);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to create room');
@@ -52,7 +52,7 @@ export default function MultiplayerHub({ onBack, onJoinRoom, initialView }: Prop
     setLoading(true);
     setError('');
     try {
-      const room = await api.rooms.get(trimmed, player?.token);
+      const room = await api.rooms.get(trimmed);
       onJoinRoom(room, role);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Room not found');

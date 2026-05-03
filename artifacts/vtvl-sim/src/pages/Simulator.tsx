@@ -130,7 +130,7 @@ export default function Simulator({ mission, onBackToMissions }: SimulatorProps)
   // Track whether the current run has been posted to the leaderboard.
   const [leaderboardPosted, setLeaderboardPosted] = useState<string | null>(null);
 
-  const submitRunToLeaderboard = useCallback((token?: string, guestName?: string, recordingId?: string) => {
+  const submitRunToLeaderboard = useCallback((guestName?: string, recordingId?: string) => {
     if (!runResult || !latestRecording) return;
     const rid = recordingId ?? latestRecording.id;
     if (leaderboardPosted === rid) return;
@@ -146,7 +146,7 @@ export default function Simulator({ mission, onBackToMissions }: SimulatorProps)
       padDeviation: runResult.score.metrics.padDeviation,
       fuelRemaining: runResult.score.metrics.fuelRemaining,
       tiltDeg: runResult.score.metrics.tiltDeg,
-    }, token).catch(() => {
+    }).catch(() => {
       setLeaderboardPosted(null);
     });
   }, [runResult, latestRecording, effectiveMission.id, leaderboardPosted]);
@@ -156,16 +156,16 @@ export default function Simulator({ mission, onBackToMissions }: SimulatorProps)
   const autoSubmittedRef = useRef<string | null>(null);
   useEffect(() => {
     if (!runResult || !latestRecording) return;
-    if (player?.type !== 'account' || !player.token) return;
+    if (player?.type !== 'account') return;
     if (!navigator.onLine) return;
     if (autoSubmittedRef.current === latestRecording.id) return;
     autoSubmittedRef.current = latestRecording.id;
-    submitRunToLeaderboard(player.token, player.displayName, latestRecording.id);
+    submitRunToLeaderboard(player.displayName, latestRecording.id);
   }, [runResult, latestRecording, player, submitRunToLeaderboard]);
 
   // Guest users: expose an explicit opt-in button (no automatic network call).
   const handlePostToLeaderboard = useCallback(() => {
-    submitRunToLeaderboard(undefined, player?.displayName);
+    submitRunToLeaderboard(player?.displayName);
   }, [submitRunToLeaderboard, player?.displayName]);
 
   const handleReviewFlight = useCallback(() => {

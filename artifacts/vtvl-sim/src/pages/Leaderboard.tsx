@@ -20,18 +20,18 @@ export default function Leaderboard({ onBack }: Props) {
   useEffect(() => {
     setLoading(true);
     setError('');
-    // Pass the guest display name when no token is present so the server can
-    // resolve the guest's personal-best row alongside the top-N.
-    const guestName = !player?.token && player?.type === 'guest' ? player.displayName : undefined;
+    // Pass the guest display name so the server can resolve the guest's
+    // personal-best row alongside the top-N.
+    const guestName = player?.type === 'guest' ? player.displayName : undefined;
     api.leaderboard
-      .get(missionFilter || undefined, 50, player?.token, guestName)
+      .get(missionFilter || undefined, 50, guestName)
       .then((res) => {
         setEntries(res.entries);
         setPersonalBest(res.personalBest);
       })
       .catch((err) => setError(err.message))
       .finally(() => setLoading(false));
-  }, [missionFilter, player?.token, player?.type, player?.displayName]);
+  }, [missionFilter, player?.type, player?.displayName]);
 
   // Only show the pinned "Your Best" row when the player's best entry is
   // outside the returned page (server returns rank=null in that case).

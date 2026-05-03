@@ -104,7 +104,7 @@ export default function MultiplayerSimulator({ missionId, seed, mp, myId, role, 
       fuelRemaining: runResult.score.metrics.fuelRemaining,
       tiltDeg: runResult.score.metrics.tiltDeg,
       flightDuration: state.t,
-    }, player?.token).catch(() => {});
+    }).catch(() => {});
   }, [runResult, resultSubmitted, role, mp, missionId, player, state.t]);
 
   const launchLabel = effectiveMission.startMode === 'launch' ? 'Launch' : 'Begin Descent';

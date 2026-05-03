@@ -10,6 +10,11 @@
  *  - RoomInfo           — shape returned by GET /rooms/:code (no hostSecret)
  *  - CreateRoomResponse — shape returned by POST /rooms (adds hostSecret)
  *  - SubmitRunPayload   — includes clientRunId for idempotent retries
+ *
+ * Authentication is handled exclusively via the HttpOnly session cookie that the
+ * server sets on login/register. All requests are made with credentials:"include"
+ * so the browser sends the cookie automatically — no bearer token is stored in
+ * JavaScript-accessible storage.
  */
 const API_BASE = "/api";
 
@@ -109,12 +114,10 @@ export interface SubmitRunPayload {
 async function apiFetch<T>(
   path: string,
   opts: RequestInit = {},
-  token?: string,
 ): Promise<T> {
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
   };
-  if (token) headers["x-session-token"] = token;
 
   const res = await fetch(`${API_BASE}${path}`, {
     credentials: "include",
@@ -132,51 +135,49 @@ async function apiFetch<T>(
 export const api = {
   auth: {
     register: (username: string, email: string, password: string) =>
-      apiFetch<{ token: string; user: UserInfo }>("/auth/register", {
+      apiFetch<{ user: UserInfo }>("/auth/register", {
         method: "POST",
         body: JSON.stringify({ username, email, password }),
       }),
     login: (email: string, password: string) =>
-      apiFetch<{ token: string; user: UserInfo }>("/auth/login", {
+      apiFetch<{ user: UserInfo }>("/auth/login", {
         method: "POST",
         body: JSON.stringify({ email, password }),
       }),
-    logout: (token?: string) =>
-      apiFetch<{ ok: boolean }>("/auth/logout", { method: "POST" }, token),
-    me: (token?: string) =>
-      apiFetch<{ user: UserInfo | null }>("/auth/me", {}, token),
+    logout: () =>
+      apiFetch<{ ok: boolean }>("/auth/logout", { method: "POST" }),
+    me: () =>
+      apiFetch<{ user: UserInfo | null }>("/auth/me"),
   },
   rooms: {
-    create: (type: "coop" | "versus", missionId: string, guestName?: string, token?: string) =>
+    create: (type: "coop" | "versus", missionId: string, guestName?: string) =>
       apiFetch<CreateRoomResponse>(
         "/rooms",
         { method: "POST", body: JSON.stringify({ type, missionId, guestName }) },
-        token,
       ),
-    get: (code: string, token?: string) =>
-      apiFetch<RoomInfo>(`/rooms/${code}`, {}, token),
+    get: (code: string) =>
+      apiFetch<RoomInfo>(`/rooms/${code}`),
   },
   runs: {
-    submit: (payload: SubmitRunPayload, token?: string) =>
+    submit: (payload: SubmitRunPayload) =>
       apiFetch<{ id: string; leaderboardId: string | null }>(
         "/runs",
         { method: "POST", body: JSON.stringify(payload) },
-        token,
       ),
   },
   leaderboard: {
-    get: (missionId?: string, limit = 50, token?: string, guestName?: string) => {
+    get: (missionId?: string, limit = 50, guestName?: string) => {
       const params = new URLSearchParams();
       if (missionId) params.set("missionId", missionId);
       params.set("limit", String(limit));
-      if (!token && guestName) params.set("guestName", guestName);
-      return apiFetch<LeaderboardResponse>(`/leaderboard?${params}`, {}, token);
+      if (guestName) params.set("guestName", guestName);
+      return apiFetch<LeaderboardResponse>(`/leaderboard?${params}`);
     },
   },
   players: {
-    stats: (userId: string, token?: string) =>
-      apiFetch<PlayerStats>(`/players/${userId}/stats`, {}, token),
-    runs: (userId: string, limit = 25, token?: string) =>
-      apiFetch<{ runs: PlayerRun[] }>(`/players/${userId}/runs?limit=${limit}`, {}, token),
+    stats: (userId: string) =>
+      apiFetch<PlayerStats>(`/players/${userId}/stats`),
+    runs: (userId: string, limit = 25) =>
+      apiFetch<{ runs: PlayerRun[] }>(`/players/${userId}/runs?limit=${limit}`),
   },
 };

@@ -35,7 +35,8 @@ router.post("/rooms", async (req, res) => {
       return res.status(400).json({ error: "missionId is required" });
     }
 
-    const token = req.cookies?.[SESSION_COOKIE] ?? req.headers["x-session-token"] as string;
+    // Authentication is cookie-only; x-session-token header is not accepted.
+    const token = req.cookies?.[SESSION_COOKIE];
     const session = getSession(token);
 
     const hostId = session?.userId ?? `guest_${uuidv4().slice(0, 8)}`;

@@ -31,7 +31,7 @@ const SESSION_COOKIE = "vtvl_session";
 const VERSUS_ROUND_TIMEOUT_MS = 5 * 60 * 1000;
 
 type ClientMsg =
-  | { type: "join_room"; roomCode: string; role: "player" | "spectator"; displayName: string; token?: string; playerId?: string; hostSecret?: string; reconnectSecret?: string }
+  | { type: "join_room"; roomCode: string; role: "player" | "spectator"; displayName: string; playerId?: string; hostSecret?: string; reconnectSecret?: string }
   | { type: "leave_room" }
   | { type: "rocket_state"; state: RocketState }
   | { type: "player_ready"; ready: boolean }
@@ -43,7 +43,9 @@ export function setupWebSocket(server: Server): WebSocketServer {
   const wss = new WebSocketServer({ server, path: "/ws" });
 
   wss.on("connection", (ws: WebSocket, req: IncomingMessage) => {
-    // Try to resolve session from cookie header
+    // Resolve session from the HttpOnly cookie sent with the WS upgrade request.
+    // The token field in join_room messages is no longer accepted — authentication
+    // is cookie-only to prevent localStorage token theft being replayed via WS.
     const cookieHeader = req.headers.cookie ?? "";
     const cookies = parseCookies(cookieHeader);
     const sessionToken = cookies[SESSION_COOKIE];
@@ -116,12 +118,6 @@ function handleMessage(
 ): void {
   switch (msg.type) {
     case "join_room": {
-      // Allow token override (for clients that send token explicitly)
-      let resolvedSession = session;
-      if (!resolvedSession && msg.token) {
-        resolvedSession = getSession(msg.token);
-      }
-
       const code = msg.roomCode?.toUpperCase();
       const room = getRoom(code);
 
@@ -138,10 +134,10 @@ function handleMessage(
       }
 
       // Check if this is a reconnecting player.
-      // Authenticated users are identified by their verified session token.
+      // Authenticated users are identified by their verified session cookie.
       // Guests must supply both playerId AND reconnectSecret (issued on original join)
       // to prevent another client from hijacking a disconnected guest's slot.
-      const candidateId = resolvedSession?.userId ?? msg.playerId;
+      const candidateId = session?.userId ?? msg.playerId;
       const candidateSecret = msg.reconnectSecret ?? "";
       if (candidateId) {
         const restored = restorePlayerConnection(room, candidateId, candidateSecret, ws);
@@ -158,7 +154,7 @@ function handleMessage(
         }
       }
 
-      // For authenticated users, identity comes from the verified session token.
+      // For authenticated users, identity comes from the verified session cookie.
       // For guests claiming host authority, they must supply both the correct playerId
       // AND the server-issued hostSecret (returned only from POST /rooms to the creator).
       // This prevents anyone who merely knows the room code from impersonating the host.
@@ -167,10 +163,10 @@ function handleMessage(
         msg.playerId === room.hostId &&
         msg.hostSecret === room.hostSecret;
       const playerId =
-        resolvedSession?.userId ??
+        session?.userId ??
         (isHostClaim ? msg.playerId! : `guest_${uuidv4().slice(0, 8)}`);
       const displayName =
-        resolvedSession?.username ?? msg.displayName ?? `Pilot-${playerId.slice(-4)}`;
+        session?.username ?? msg.displayName ?? `Pilot-${playerId.slice(-4)}`;
 
       const role = msg.role ?? "player";
 
@@ -182,7 +178,7 @@ function handleMessage(
       const player: RoomPlayer = {
         id: playerId,
         displayName,
-        userId: resolvedSession?.userId,
+        userId: session?.userId,
         role,
         ready: false,
         finished: false,
