@@ -87,7 +87,7 @@ export function SettingsPanel({
   ];
 
   return (
-    <div className="absolute top-4 right-4 z-30 w-80 max-w-[90vw] flex flex-col items-end gap-2 pointer-events-none">
+    <div className="w-72 max-w-[90vw] flex flex-col items-end gap-2 pointer-events-none">
       <div className="pointer-events-auto">
         <Button
           onClick={() => setOpen((o) => !o)}

@@ -1,9 +1,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useSimulation } from '../hooks/useSimulation';
+import { useIsMobile } from '../hooks/useIsMobile';
+import { useKeyboardControls } from '../hooks/useKeyboardControls';
 import { Sim2D } from '../components/Sim2D';
 import { Sim3D } from '../components/Sim3D';
 import { HUD } from '../components/HUD';
 import { ControlPanel } from '../components/ControlPanel';
+import { TouchControls } from '../components/TouchControls';
 import { ModeToggle } from '../components/ModeToggle';
 import { ScorePanel } from '../components/ScorePanel';
 import { WindPanel } from '../components/WindPanel';
@@ -40,6 +43,7 @@ interface SimulatorProps {
 }
 
 export default function Simulator({ mission, onBackToMissions }: SimulatorProps) {
+  const isMobile = useIsMobile();
   const [vehicle, setVehicle] = useState<VehicleConfig>(DEFAULT_VEHICLE);
   const [gravity, setGravity] = useState<number>(mission.gravity);
 
@@ -93,6 +97,20 @@ export default function Simulator({ mission, onBackToMissions }: SimulatorProps)
   const launchLabel =
     effectiveMission.startMode === 'launch' ? 'Launch' : 'Begin Descent';
   const inReplay = !!replay.recording;
+
+  // Keyboard bindings live in a hook so they keep working regardless of which
+  // control surface (sliders vs. touch pads) is rendered. Suppressed during
+  // replay so playback hotkeys (in Timeline) take precedence.
+  useKeyboardControls({
+    controls,
+    setControls,
+    reset,
+    autopilotEnabled,
+    setAutopilotEnabled,
+    status: state.status,
+    onBackToMissions,
+    enabled: !inReplay,
+  });
 
   // Whenever a brand-new run finishes, un-dismiss the score panel.
   useEffect(() => {
@@ -169,25 +187,93 @@ export default function Simulator({ mission, onBackToMissions }: SimulatorProps)
         <Sim3D state={state} mission={effectiveMission} vehicle={vehicle} />
       )}
 
-      {/* Overlay UI */}
-      <HUD state={state} mission={effectiveMission} vehicle={vehicle} />
-      <ModeToggle mode={mode} setMode={setMode} />
-
-      <WindPanel
-        windOverride={windOverride}
-        setWindOverride={setWindOverride}
-        windNow={state.windNow}
-        disabled={inReplay}
-      />
-
-      <SettingsPanel
+      {/* Telemetry HUD (compact bar on mobile, full panel on desktop) */}
+      <HUD
+        state={state}
+        mission={effectiveMission}
         vehicle={vehicle}
-        setVehicle={setVehicle}
-        mission={mission}
-        gravity={gravity}
-        setGravity={setGravity}
-        defaultGravity={mission.gravity}
+        compact={isMobile}
       />
+
+      {/* Right-side controls column. On desktop the panels keep their
+          original absolute positions; on mobile they collapse into a
+          single stacked column hugging the right edge so they no longer
+          collide with each other or with the touch pad below. */}
+      {isMobile ? (
+        <div className="absolute top-12 right-2 z-30 flex flex-col items-end gap-2 max-w-[calc(100vw-1rem)] pointer-events-none">
+          <div className="pointer-events-auto">
+            <ModeToggle mode={mode} setMode={setMode} />
+          </div>
+          <div className="pointer-events-auto">
+            <Button
+              type="button"
+              onClick={() => setArchiveOpen(true)}
+              variant="outline"
+              size="sm"
+              className="h-8 px-3 bg-black/60 border-slate-800 hover:border-amber-500/40 hover:bg-black/80 text-slate-300 hover:text-amber-300 font-mono text-[10px] uppercase tracking-wider"
+            >
+              Flight Log
+            </Button>
+          </div>
+          <div className="pointer-events-auto w-60 max-w-[calc(100vw-1rem)]">
+            <WindPanel
+              windOverride={windOverride}
+              setWindOverride={setWindOverride}
+              windNow={state.windNow}
+              disabled={inReplay}
+            />
+          </div>
+          <div className="pointer-events-auto">
+            <SettingsPanel
+              vehicle={vehicle}
+              setVehicle={setVehicle}
+              mission={mission}
+              gravity={gravity}
+              setGravity={setGravity}
+              defaultGravity={mission.gravity}
+            />
+          </div>
+        </div>
+      ) : (
+        <>
+          <div className="absolute top-4 right-4 z-20">
+            <ModeToggle mode={mode} setMode={setMode} />
+          </div>
+
+          <div className="absolute top-16 right-4 z-20">
+            <WindPanel
+              windOverride={windOverride}
+              setWindOverride={setWindOverride}
+              windNow={state.windNow}
+              disabled={inReplay}
+            />
+          </div>
+
+          <div className="absolute top-4 right-4 z-30">
+            <SettingsPanel
+              vehicle={vehicle}
+              setVehicle={setVehicle}
+              mission={mission}
+              gravity={gravity}
+              setGravity={setGravity}
+              defaultGravity={mission.gravity}
+            />
+          </div>
+
+          {/* Archive button (top-right, between mode toggle and settings) */}
+          <div className="absolute top-4 right-44 z-20">
+            <Button
+              type="button"
+              onClick={() => setArchiveOpen(true)}
+              variant="outline"
+              size="sm"
+              className="h-8 px-3 bg-black/60 border-slate-800 hover:border-amber-500/40 hover:bg-black/80 text-slate-300 hover:text-amber-300 font-mono text-[10px] uppercase tracking-wider"
+            >
+              Flight Log
+            </Button>
+          </div>
+        </>
+      )}
 
       <TelemetryCharts
         telemetry={telemetry}
@@ -195,45 +281,50 @@ export default function Simulator({ mission, onBackToMissions }: SimulatorProps)
         missionFuel={mission.fuel}
       />
 
-      {/* Archive button (top-left, below HUD area) */}
-      <div className="absolute top-4 right-44 z-20">
-        <Button
-          type="button"
-          onClick={() => setArchiveOpen(true)}
-          variant="outline"
-          size="sm"
-          className="h-8 px-3 bg-black/60 border-slate-800 hover:border-amber-500/40 hover:bg-black/80 text-slate-300 hover:text-amber-300 font-mono text-[10px] uppercase tracking-wider"
-        >
-          Flight Log
-        </Button>
-      </div>
-
+      {/* Control surface — touch pad on mobile, slider panel on desktop */}
       {showControlPanel && (
-        <ControlPanel
-          controls={controls}
-          setControls={setControls}
-          launch={launch}
-          reset={reset}
-          autopilotEnabled={autopilotEnabled}
-          setAutopilotEnabled={setAutopilotEnabled}
-          status={state.status}
-          launchLabel={launchLabel}
-          onBackToMissions={onBackToMissions}
-          maxGimbalDeg={vehicle.maxGimbalDeg}
-        />
+        isMobile ? (
+          <TouchControls
+            controls={controls}
+            setControls={setControls}
+            launch={launch}
+            reset={reset}
+            autopilotEnabled={autopilotEnabled}
+            setAutopilotEnabled={setAutopilotEnabled}
+            status={state.status}
+            launchLabel={launchLabel}
+            onBackToMissions={onBackToMissions}
+          />
+        ) : (
+          <ControlPanel
+            controls={controls}
+            setControls={setControls}
+            launch={launch}
+            reset={reset}
+            autopilotEnabled={autopilotEnabled}
+            setAutopilotEnabled={setAutopilotEnabled}
+            status={state.status}
+            launchLabel={launchLabel}
+            onBackToMissions={onBackToMissions}
+            maxGimbalDeg={vehicle.maxGimbalDeg}
+          />
+        )
       )}
 
-      {/* Status Bar */}
-      <div className="absolute bottom-2 right-4 flex items-center gap-4 text-[10px] font-mono text-slate-500 z-10">
-        <div>FPS: <span className="text-slate-300">{fps}</span></div>
-        <div>SYS: <span className="text-slate-300">{state.status.toUpperCase()}</span></div>
-        <div>AP: <span className={autopilotEnabled ? "text-amber-400" : "text-slate-300"}>{autopilotEnabled ? 'ENGAGED' : 'STBY'}</span></div>
-        {inReplay && (
-          <div>
-            MODE: <span className="text-amber-400">REPLAY</span>
-          </div>
-        )}
-      </div>
+      {/* Status Bar — desktop only; the compact mobile HUD already shows
+          status, and the touch overlay leaves no room here. */}
+      {!isMobile && (
+        <div className="absolute bottom-2 right-4 flex items-center gap-4 text-[10px] font-mono text-slate-500 z-10">
+          <div>FPS: <span className="text-slate-300">{fps}</span></div>
+          <div>SYS: <span className="text-slate-300">{state.status.toUpperCase()}</span></div>
+          <div>AP: <span className={autopilotEnabled ? "text-amber-400" : "text-slate-300"}>{autopilotEnabled ? 'ENGAGED' : 'STBY'}</span></div>
+          {inReplay && (
+            <div>
+              MODE: <span className="text-amber-400">REPLAY</span>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Replay Timeline (overrides ControlPanel while active) */}
       {inReplay && replay.recording && (

@@ -1,4 +1,3 @@
-import { useEffect } from 'react';
 import { Controls } from '../lib/physics';
 import { Button } from './ui/button';
 import { Slider } from './ui/slider';
@@ -16,6 +15,11 @@ interface ControlPanelProps {
   maxGimbalDeg?: number;
 }
 
+/**
+ * Desktop control surface: throttle/gimbal sliders + action buttons.
+ * Keyboard handlers live in `useKeyboardControls` so they keep working when
+ * the touch surface is mounted instead.
+ */
 export function ControlPanel({
   controls,
   setControls,
@@ -28,79 +32,8 @@ export function ControlPanel({
   onBackToMissions,
   maxGimbalDeg = 15,
 }: ControlPanelProps) {
-
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      const k = e.key.toLowerCase();
-      if (status === 'landed' || status === 'crashed') {
-        if (k === 'r') reset();
-        if (k === 'm' && onBackToMissions) onBackToMissions();
-        return;
-      }
-
-      if (e.repeat) return;
-
-      switch (k) {
-        case 'w':
-        case 'arrowup':
-          if (!autopilotEnabled) setControls({ throttle: Math.min(1, controls.throttle + 0.1) });
-          e.preventDefault();
-          break;
-        case 's':
-        case 'arrowdown':
-          if (!autopilotEnabled) setControls({ throttle: Math.max(0, controls.throttle - 0.1) });
-          e.preventDefault();
-          break;
-        case 'a':
-        case 'arrowleft':
-          if (!autopilotEnabled) setControls({ gimbal: Math.max(-1, controls.gimbal - 0.2) });
-          e.preventDefault();
-          break;
-        case 'd':
-        case 'arrowright':
-          if (!autopilotEnabled) setControls({ gimbal: Math.min(1, controls.gimbal + 0.2) });
-          e.preventDefault();
-          break;
-        case ' ':
-          if (!autopilotEnabled) setControls({ throttle: 1 });
-          e.preventDefault();
-          break;
-        case 'p':
-          setAutopilotEnabled(!autopilotEnabled);
-          break;
-        case 'r':
-          reset();
-          break;
-        case 'm':
-          if (onBackToMissions) onBackToMissions();
-          break;
-      }
-    };
-
-    const handleKeyUp = (e: KeyboardEvent) => {
-      if (status === 'landed' || status === 'crashed') return;
-
-      const k = e.key.toLowerCase();
-      switch (k) {
-        case 'a':
-        case 'd':
-        case 'arrowleft':
-        case 'arrowright':
-          if (!autopilotEnabled) setControls({ gimbal: 0 });
-          break;
-        case ' ':
-          if (!autopilotEnabled) setControls({ throttle: 0 });
-          break;
-      }
-    };
-
-    window.addEventListener('keydown', handleKeyDown);
-    window.addEventListener('keyup', handleKeyUp);
-    return () => {
-      window.removeEventListener('keydown', handleKeyDown);
-      window.removeEventListener('keyup', handleKeyUp);
-    };
-  }, [controls, setControls, autopilotEnabled, setAutopilotEnabled, reset, status, onBackToMissions]);
+  const ended = status === 'landed' || status === 'crashed';
+  const sliderDisabled = autopilotEnabled || ended;
 
   return (
     <div className="absolute bottom-6 left-1/2 -translate-x-1/2 w-full max-w-2xl bg-black/80 backdrop-blur-md border border-slate-800 rounded-xl p-6 shadow-2xl flex flex-col gap-6">
@@ -117,7 +50,7 @@ export function ControlPanel({
             max={1}
             step={0.01}
             onValueChange={([val]) => !autopilotEnabled && setControls({ throttle: val })}
-            disabled={autopilotEnabled || status === 'landed' || status === 'crashed'}
+            disabled={sliderDisabled}
             className="cursor-pointer"
           />
           <div className="text-[10px] text-slate-500 font-mono mt-1 text-center">W/S or ↑/↓ to adjust, SPACE for max</div>
@@ -135,7 +68,7 @@ export function ControlPanel({
             max={1}
             step={0.05}
             onValueChange={([val]) => !autopilotEnabled && setControls({ gimbal: val })}
-            disabled={autopilotEnabled || status === 'landed' || status === 'crashed'}
+            disabled={sliderDisabled}
             className="cursor-pointer"
           />
           <div className="text-[10px] text-slate-500 font-mono mt-1 text-center">A/D or ←/→ to steer</div>

@@ -1,4 +1,5 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { useIsMobile } from '../hooks/useIsMobile';
 import {
   Area,
   AreaChart,
@@ -53,7 +54,18 @@ const tooltipStyle = {
 };
 
 export function TelemetryCharts({ telemetry, vehicle, missionFuel }: TelemetryChartsProps) {
-  const [open, setOpen] = useState(true);
+  const isMobile = useIsMobile();
+  // Charts are detail-rich; default-collapsed on small screens so the touch
+  // controls and viewport stay in focus. Re-collapse / re-expand when the
+  // viewport crosses the breakpoint (resize, orientation change, devtools).
+  const [open, setOpen] = useState(!isMobile);
+  const prevIsMobileRef = useRef(isMobile);
+  useEffect(() => {
+    if (prevIsMobileRef.current !== isMobile) {
+      setOpen(!isMobile);
+      prevIsMobileRef.current = isMobile;
+    }
+  }, [isMobile]);
 
   // Project the raw telemetry stream into the four series shown in the panel.
   // Done once per render to keep the recharts components dumb / pure.
@@ -71,7 +83,7 @@ export function TelemetryCharts({ telemetry, vehicle, missionFuel }: TelemetryCh
 
   return (
     <div
-      className="absolute bottom-6 right-4 z-20 w-[320px] max-w-[calc(100vw-2rem)] bg-black/85 border border-slate-800 rounded-xl shadow-2xl backdrop-blur-md flex flex-col"
+      className="absolute right-2 md:right-4 bottom-[180px] md:bottom-6 z-20 w-[280px] md:w-[320px] max-w-[calc(100vw-1rem)] bg-black/85 border border-slate-800 rounded-xl shadow-2xl backdrop-blur-md flex flex-col"
       data-testid="panel-telemetry"
     >
       <button

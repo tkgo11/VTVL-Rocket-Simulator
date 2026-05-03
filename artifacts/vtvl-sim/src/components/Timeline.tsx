@@ -116,7 +116,7 @@ export function Timeline({
     recording.outcome === 'landed' ? 'text-emerald-300' : 'text-red-400';
 
   return (
-    <div className="absolute bottom-6 left-1/2 -translate-x-1/2 w-full max-w-3xl bg-black/85 backdrop-blur-md border border-slate-800 rounded-xl shadow-2xl px-5 py-4 flex flex-col gap-3 z-30">
+    <div className="absolute bottom-3 md:bottom-6 left-1/2 -translate-x-1/2 w-[calc(100vw-1rem)] md:w-full max-w-3xl bg-black/85 backdrop-blur-md border border-slate-800 rounded-xl shadow-2xl px-3 py-3 md:px-5 md:py-4 flex flex-col gap-2 md:gap-3 z-30">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
           <div className="text-[10px] font-mono uppercase tracking-[0.3em] text-amber-400">
@@ -192,8 +192,8 @@ export function Timeline({
         </div>
       </div>
 
-      <div className="flex items-center justify-between gap-3">
-        <div className="flex items-center gap-2">
+      <div className="flex flex-wrap items-center justify-between gap-2 md:gap-3">
+        <div className="flex items-center gap-2 flex-wrap">
           <Button
             type="button"
             onClick={onTogglePlay}
@@ -229,7 +229,7 @@ export function Timeline({
           </div>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 md:gap-3">
           <div className="text-[11px] font-mono text-slate-300">
             {formatTime(time)}
             <span className="text-slate-600"> / {formatTime(recording.duration)}</span>

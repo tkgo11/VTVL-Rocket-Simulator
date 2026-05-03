@@ -8,7 +8,7 @@ interface ModeToggleProps {
 
 export function ModeToggle({ mode, setMode }: ModeToggleProps) {
   return (
-    <div className="absolute top-4 right-4 flex bg-black/60 border border-slate-800 rounded backdrop-blur-sm p-1">
+    <div className="flex bg-black/60 border border-slate-800 rounded backdrop-blur-sm p-1">
       <Button
         variant="ghost"
         size="sm"

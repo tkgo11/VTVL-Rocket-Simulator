@@ -28,7 +28,7 @@ export function WindPanel({
 
   // The toggle pill is always visible; the controls expand below it.
   return (
-    <div className="absolute top-16 right-4 z-20 w-60">
+    <div className="w-full md:w-60">
       <button
         type="button"
         onClick={() => setOpen((o) => !o)}
