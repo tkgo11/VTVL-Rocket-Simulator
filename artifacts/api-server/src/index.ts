@@ -26,3 +26,12 @@ httpServer.on("error", (err) => {
   logger.error({ err }, "Server error");
   process.exit(1);
 });
+
+const shutdown = (signal: string) => {
+  logger.info({ signal }, "Shutting down");
+  httpServer.close(() => process.exit(0));
+  setTimeout(() => process.exit(0), 3000).unref();
+};
+
+process.on("SIGTERM", () => shutdown("SIGTERM"));
+process.on("SIGINT", () => shutdown("SIGINT"));
