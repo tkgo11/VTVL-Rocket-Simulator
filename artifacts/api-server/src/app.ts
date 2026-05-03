@@ -30,10 +30,10 @@ app.use(
 // In production, only the Replit deployment domain is trusted.
 // In development, also allow localhost and the Replit dev proxy domain.
 const TRUSTED_ORIGINS: (string | RegExp)[] = [
-  // Replit dev proxy: https://<REPL_ID>.replit.dev
-  /^https?:\/\/[a-zA-Z0-9-]+\.replit\.dev(:\d+)?$/,
-  // Replit deployment domains
-  /^https:\/\/[a-zA-Z0-9-]+\.replit\.app$/,
+  // Replit dev proxy: https://<subdomains>.replit.dev (may have multiple subdomain segments)
+  /^https?:\/\/([a-zA-Z0-9-]+\.)+replit\.dev(:\d+)?$/,
+  // Replit deployment domains (may have multiple subdomain segments)
+  /^https:\/\/([a-zA-Z0-9-]+\.)+replit\.app$/,
   // Local development
   /^https?:\/\/localhost(:\d+)?$/,
   /^https?:\/\/127\.0\.0\.1(:\d+)?$/,
