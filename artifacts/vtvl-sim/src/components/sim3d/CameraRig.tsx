@@ -1,16 +1,12 @@
-import { useEffect, useMemo, useRef } from 'react';
+import { ComponentRef, useEffect, useMemo, useRef } from 'react';
 import { useFrame, useThree } from '@react-three/fiber';
 import { OrbitControls } from '@react-three/drei';
 import * as THREE from 'three';
 import { MissionConfig, PhysicsState, CONSTANTS } from '../../lib/physics';
 
-// Minimal structural type for the OrbitControls instance we manipulate. Avoids
-// pulling in the three-stdlib type package while still being precise about
-// what we touch.
-interface OrbitControlsLike {
-  target: THREE.Vector3;
-  update: () => void;
-}
+// Use the component's own instance type so we get correct typing without
+// pulling in the three-stdlib type package directly.
+type OrbitControlsImpl = ComponentRef<typeof OrbitControls>;
 
 export type CameraMode = 'tracking' | 'chase' | 'orbit';
 
@@ -27,7 +23,7 @@ export function CameraRig({ mode, state, mission }: CameraRigProps) {
   const tmpDesired = useRef(new THREE.Vector3());
   const tmpLook = useRef(new THREE.Vector3());
 
-  const orbitRef = useRef<OrbitControlsLike | null>(null);
+  const orbitRef = useRef<OrbitControlsImpl | null>(null);
 
   // When entering orbit mode, capture a desired starting pose; the per-frame
   // loop will then interpolate toward it for a smooth transition instead of
@@ -97,7 +93,7 @@ export function CameraRig({ mode, state, mission }: CameraRigProps) {
     if (mode !== 'orbit') return null;
     return (
       <OrbitControls
-        ref={orbitRef as unknown as React.Ref<never>}
+        ref={orbitRef}
         enableDamping
         dampingFactor={0.1}
         minDistance={25}
