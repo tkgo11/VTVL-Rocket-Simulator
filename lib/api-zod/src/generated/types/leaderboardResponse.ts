@@ -6,7 +6,11 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { LeaderboardEntry } from "./leaderboardEntry";
+import type { PersonalBestEntry } from "./personalBestEntry";
 
 export interface LeaderboardResponse {
   entries: LeaderboardEntry[];
+  /** The requesting player's best entry for the same mission scope. Null when the requester is unidentified or has no recorded score.
+   */
+  personalBest?: PersonalBestEntry | null;
 }

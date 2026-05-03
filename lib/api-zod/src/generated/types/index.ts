@@ -18,6 +18,7 @@ export * from "./leaderboardResponse";
 export * from "./loginRequest";
 export * from "./meResponse";
 export * from "./okResponse";
+export * from "./personalBestEntry";
 export * from "./playerStatsResponse";
 export * from "./registerRequest";
 export * from "./roomResponse";

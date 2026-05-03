@@ -207,6 +207,15 @@ paths:
           schema:
             type: integer
             default: 50
+        - name: guestName
+          in: query
+          required: false
+          description: >
+            Display name of an unauthenticated player. When provided (and no
+            account session is present), the server uses it to resolve the
+            requester's personal-best entry for the personalBest field.
+          schema:
+            type: string
       responses:
         "200":
           description: Leaderboard entries
@@ -456,8 +465,42 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/LeaderboardEntry"
+        personalBest:
+          nullable: true
+          oneOf:
+            - $ref: "#/components/schemas/PersonalBestEntry"
+            - type: "null"
+          description: >
+            The requesting player's best entry for the same mission scope.
+            Null when the requester is unidentified or has no recorded score.
       required:
         - entries
+        - personalBest
+
+    PersonalBestEntry:
+      type: object
+      properties:
+        displayName:
+          type: string
+        missionId:
+          type: string
+        score:
+          type: integer
+        grade:
+          type: string
+        createdAt:
+          type: string
+        rank:
+          type: integer
+          nullable: true
+          description: 1-based rank within the returned page; null if outside it.
+      required:
+        - displayName
+        - missionId
+        - score
+        - grade
+        - createdAt
+        - rank
 
     PlayerStatsResponse:
       type: object

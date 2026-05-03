@@ -9,4 +9,9 @@
 export type GetLeaderboardParams = {
   missionId?: string;
   limit?: number;
+  /**
+ * Display name of an unauthenticated player. When provided (and no account session is present), the server uses it to resolve the requester's personal-best entry for the personalBest field.
+
+ */
+  guestName?: string;
 };

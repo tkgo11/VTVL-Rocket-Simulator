@@ -49,6 +49,21 @@ export interface LeaderboardEntry {
   createdAt: string;
 }
 
+export interface PersonalBestEntry {
+  displayName: string;
+  missionId: string;
+  score: number;
+  grade: string;
+  createdAt: string;
+  /** 1-based rank within the returned page; null when outside it. */
+  rank: number | null;
+}
+
+export interface LeaderboardResponse {
+  entries: LeaderboardEntry[];
+  personalBest: PersonalBestEntry | null;
+}
+
 export interface PlayerRun {
   id: string;
   missionId: string;
@@ -150,11 +165,12 @@ export const api = {
       ),
   },
   leaderboard: {
-    get: (missionId?: string, limit = 50, token?: string) => {
+    get: (missionId?: string, limit = 50, token?: string, guestName?: string) => {
       const params = new URLSearchParams();
       if (missionId) params.set("missionId", missionId);
       params.set("limit", String(limit));
-      return apiFetch<{ entries: LeaderboardEntry[] }>(`/leaderboard?${params}`, {}, token);
+      if (!token && guestName) params.set("guestName", guestName);
+      return apiFetch<LeaderboardResponse>(`/leaderboard?${params}`, {}, token);
     },
   },
   players: {

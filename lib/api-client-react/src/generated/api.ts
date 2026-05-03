@@ -490,7 +490,6 @@ export const getCreateRoomMutationOptions = <
   return { mutationFn, ...mutationOptions };
 };
 
-/** Result of POST /rooms — includes hostSecret for WS host authority claim. */
 export type CreateRoomMutationResult = NonNullable<
   Awaited<ReturnType<typeof createRoom>>
 >;

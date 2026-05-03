@@ -2,7 +2,7 @@ import { Router } from "express";
 import { v4 as uuidv4 } from "uuid";
 import { db } from "@workspace/db";
 import { runsTable, leaderboardTable, usersTable } from "@workspace/db/schema";
-import { eq, desc, and } from "drizzle-orm";
+import { eq, desc, and, isNull } from "drizzle-orm";
 import { getSession } from "../lib/sessionStore";
 import { logger } from "../lib/logger";
 
@@ -119,6 +119,7 @@ router.post("/runs", async (req, res) => {
 router.get("/leaderboard", async (req, res) => {
   try {
     const missionId = req.query["missionId"] as string | undefined;
+    const guestName = req.query["guestName"] as string | undefined;
     const limit = Math.min(parseInt(req.query["limit"] as string ?? "50", 10), 100);
 
     const conditions = [];
@@ -133,6 +134,55 @@ router.get("/leaderboard", async (req, res) => {
       .orderBy(desc(leaderboardTable.score), desc(leaderboardTable.createdAt))
       .limit(limit);
 
+    // Resolve the requesting player's personal best for the same scope
+    // (mission filter included). Accounts are identified by session; guests
+    // are identified by their session-supplied display name.
+    const token = req.cookies?.[SESSION_COOKIE] ?? (req.headers["x-session-token"] as string | undefined);
+    const session = getSession(token);
+
+    let personalBest: {
+      displayName: string;
+      score: number;
+      grade: string;
+      missionId: string;
+      createdAt: string;
+      rank: number | null;
+    } | null = null;
+
+    const pbConditions = [] as ReturnType<typeof eq>[];
+    if (missionId) pbConditions.push(eq(leaderboardTable.missionId, missionId));
+
+    if (session) {
+      pbConditions.push(eq(leaderboardTable.userId, session.userId));
+    } else if (guestName) {
+      pbConditions.push(isNull(leaderboardTable.userId));
+      pbConditions.push(eq(leaderboardTable.displayName, guestName));
+    }
+
+    if (session || guestName) {
+      const [best] = await db
+        .select()
+        .from(leaderboardTable)
+        .where(pbConditions.length > 0 ? and(...pbConditions) : undefined)
+        .orderBy(desc(leaderboardTable.score), desc(leaderboardTable.createdAt))
+        .limit(1);
+
+      if (best) {
+        // Compute exact rank only when it is cheap (score is in the page we
+        // already fetched). Otherwise leave null and let the UI render
+        // "outside top N".
+        const idxInPage = entries.findIndex((e) => e.id === best.id);
+        personalBest = {
+          displayName: best.displayName,
+          score: best.score,
+          grade: best.grade,
+          missionId: best.missionId,
+          createdAt: best.createdAt.toISOString(),
+          rank: idxInPage >= 0 ? idxInPage + 1 : null,
+        };
+      }
+    }
+
     return res.json({
       entries: entries.map((e) => ({
         id: e.id,
@@ -143,6 +193,7 @@ router.get("/leaderboard", async (req, res) => {
         grade: e.grade,
         createdAt: e.createdAt.toISOString(),
       })),
+      personalBest,
     });
   } catch (err) {
     logger.error({ err }, "leaderboard error");

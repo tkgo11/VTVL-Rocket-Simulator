@@ -5,15 +5,13 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
-
 import type { RoomResponse } from "./roomResponse";
 
 /**
- * Returned only from POST /rooms. Extends RoomResponse with hostSecret,
- * a one-time credential the host must supply via the WS join_room message
- * to claim host authority. Never returned by GET /rooms/{code}.
+ * Returned only from POST /rooms. Extends RoomResponse with hostSecret, a one-time credential the host must supply via the WS join_room message to claim host authority. It is never returned by GET /rooms/{code}.
+
  */
-export interface CreateRoomResponse extends RoomResponse {
+export type CreateRoomResponse = RoomResponse & {
   /** UUID credential for the room host; never exposed to non-host clients. */
   hostSecret: string;
-}
+};

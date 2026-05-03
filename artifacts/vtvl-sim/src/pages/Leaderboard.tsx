@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { api, LeaderboardEntry, PlayerStats } from '../lib/api';
+import { api, LeaderboardEntry, PersonalBestEntry } from '../lib/api';
 import { usePlayer } from '../contexts/PlayerContext';
 import { Button } from '../components/ui/button';
 import { GRADE_COLORS, Grade } from '../lib/scoring';
@@ -12,31 +12,30 @@ interface Props {
 export default function Leaderboard({ onBack }: Props) {
   const { player } = usePlayer();
   const [entries, setEntries] = useState<LeaderboardEntry[]>([]);
+  const [personalBest, setPersonalBest] = useState<PersonalBestEntry | null>(null);
   const [missionFilter, setMissionFilter] = useState<string>('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [myStats, setMyStats] = useState<PlayerStats | null>(null);
 
   useEffect(() => {
     setLoading(true);
     setError('');
+    // Pass the guest display name when no token is present so the server can
+    // resolve the guest's personal-best row alongside the top-N.
+    const guestName = !player?.token && player?.type === 'guest' ? player.displayName : undefined;
     api.leaderboard
-      .get(missionFilter || undefined, 50, player?.token)
-      .then((res) => setEntries(res.entries))
+      .get(missionFilter || undefined, 50, player?.token, guestName)
+      .then((res) => {
+        setEntries(res.entries);
+        setPersonalBest(res.personalBest);
+      })
       .catch((err) => setError(err.message))
       .finally(() => setLoading(false));
-  }, [missionFilter, player?.token]);
+  }, [missionFilter, player?.token, player?.type, player?.displayName]);
 
-  // If the signed-in user is outside the top-N, fetch their personal best so we
-  // can show a "Your best" row at the bottom of the table.
-  useEffect(() => {
-    if (!player?.user?.id || !player.token) { setMyStats(null); return; }
-    const inTop = entries.some((e) => e.userId === player.user!.id);
-    if (inTop) { setMyStats(null); return; }
-    api.players.stats(player.user.id, player.token)
-      .then(setMyStats)
-      .catch(() => setMyStats(null));
-  }, [entries, player]);
+  // Only show the pinned "Your Best" row when the player's best entry is
+  // outside the returned page (server returns rank=null in that case).
+  const showPinnedBest = personalBest && personalBest.rank === null;
 
   return (
     <div className="min-h-screen bg-black text-white font-mono">
@@ -143,8 +142,9 @@ export default function Leaderboard({ onBack }: Props) {
                   );
                 })}
 
-                {/* "Your best" row — shown when the signed-in user is outside the top-N */}
-                {myStats && myStats.bestScore !== null && (
+                {/* "Your Best" pinned row — shown only when the player's best
+                    entry is outside the returned top-N page. */}
+                {showPinnedBest && personalBest && (
                   <>
                     <tr className="border-t border-slate-700">
                       <td colSpan={6} className="px-4 py-1 text-center text-[10px] font-mono uppercase tracking-widest text-slate-600">
@@ -154,15 +154,15 @@ export default function Leaderboard({ onBack }: Props) {
                     <tr className="border-t border-amber-500/20 bg-amber-500/10">
                       <td className="px-4 py-3 text-slate-500">#{entries.length + 1}+</td>
                       <td className="px-4 py-3 text-white font-medium">
-                        {player!.displayName}
+                        {personalBest.displayName}
                         <span className="ml-2 text-[10px] text-amber-400 uppercase tracking-wider">You</span>
                       </td>
                       <td className="px-4 py-3 text-slate-400 hidden sm:table-cell">
-                        {missionFilter ? (MISSIONS.find((m) => m.id === missionFilter)?.name ?? missionFilter) : 'Personal best'}
+                        {MISSIONS.find((m) => m.id === personalBest.missionId)?.name ?? personalBest.missionId}
                       </td>
-                      <td className="px-4 py-3 text-right text-white">{myStats.bestScore}</td>
-                      <td className={`px-4 py-3 text-right font-bold ${myStats.bestGrade ? (GRADE_COLORS[myStats.bestGrade as Grade] ?? 'text-slate-400') : 'text-slate-400'}`}>
-                        {myStats.bestGrade ?? '—'}
+                      <td className="px-4 py-3 text-right text-white">{personalBest.score}</td>
+                      <td className={`px-4 py-3 text-right font-bold ${GRADE_COLORS[personalBest.grade as Grade] ?? 'text-slate-400'}`}>
+                        {personalBest.grade}
                       </td>
                       <td className="px-4 py-3 text-right text-slate-600 text-xs hidden md:table-cell">Outside top {entries.length}</td>
                     </tr>
