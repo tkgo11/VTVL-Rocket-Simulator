@@ -41,18 +41,28 @@ export default function Leaderboard({ onBack }: Props) {
   return (
     <div className="min-h-screen bg-black text-white font-mono">
       {/* Header */}
-      <div className="border-b border-slate-800 px-6 py-4 flex items-center gap-4">
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={onBack}
-          className="border-slate-700 text-slate-300 hover:text-amber-300 hover:border-amber-500/40 bg-transparent"
-        >
-          ← Back
-        </Button>
-        <h1 className="text-xl font-bold tracking-widest uppercase text-amber-400">
-          Global Leaderboard
-        </h1>
+      <div className="border-b border-slate-800 px-6 py-4 flex items-center justify-between gap-4">
+        <div className="flex items-center gap-4">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={onBack}
+            className="border-slate-700 text-slate-300 hover:text-amber-300 hover:border-amber-500/40 bg-transparent"
+          >
+            ← Back
+          </Button>
+          <h1 className="text-xl font-bold tracking-widest uppercase text-amber-400">
+            Global Leaderboard
+          </h1>
+        </div>
+        {player?.type === 'account' && (
+          <div className="flex items-center gap-2 px-3 py-1.5 rounded-md bg-slate-800/60 border border-slate-700">
+            <div className="w-6 h-6 rounded-full bg-amber-500/20 border border-amber-500/40 flex items-center justify-center text-amber-400 text-xs font-bold">
+              {player.displayName[0]?.toUpperCase()}
+            </div>
+            <span className="text-xs font-mono text-slate-300">{player.displayName}</span>
+          </div>
+        )}
       </div>
 
       <div className="max-w-3xl mx-auto px-6 py-8">

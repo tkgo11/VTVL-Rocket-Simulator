@@ -49,6 +49,20 @@ export interface LeaderboardEntry {
   createdAt: string;
 }
 
+export interface PlayerRun {
+  id: string;
+  missionId: string;
+  score: number;
+  grade: string;
+  crashed: boolean;
+  touchdownSpeed: number | null;
+  padDeviation: number | null;
+  fuelRemaining: number | null;
+  tiltDeg: number | null;
+  flightDuration: number | null;
+  createdAt: string;
+}
+
 export interface PlayerStats {
   userId: string;
   username: string;
@@ -146,5 +160,7 @@ export const api = {
   players: {
     stats: (userId: string, token?: string) =>
       apiFetch<PlayerStats>(`/players/${userId}/stats`, {}, token),
+    runs: (userId: string, limit = 25, token?: string) =>
+      apiFetch<{ runs: PlayerRun[] }>(`/players/${userId}/runs?limit=${limit}`, {}, token),
   },
 };

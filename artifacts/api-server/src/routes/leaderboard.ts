@@ -150,6 +150,58 @@ router.get("/leaderboard", async (req, res) => {
   }
 });
 
+router.get("/players/:userId/runs", async (req, res) => {
+  try {
+    const { userId } = req.params;
+
+    // Run history is private — only the account owner may read it.
+    const token = req.cookies?.[SESSION_COOKIE] ?? (req.headers["x-session-token"] as string | undefined);
+    const session = getSession(token);
+    if (!session || session.userId !== userId) {
+      return res.status(403).json({ error: "Forbidden" });
+    }
+
+    const rawLimit = parseInt(req.query["limit"] as string ?? "", 10);
+    const limit = Math.min(Math.max(Number.isFinite(rawLimit) ? rawLimit : 25, 1), 100);
+
+    const [user] = await db
+      .select()
+      .from(usersTable)
+      .where(eq(usersTable.id, userId))
+      .limit(1);
+
+    if (!user) {
+      return res.status(404).json({ error: "Player not found" });
+    }
+
+    const runs = await db
+      .select()
+      .from(runsTable)
+      .where(eq(runsTable.userId, userId))
+      .orderBy(desc(runsTable.createdAt))
+      .limit(limit);
+
+    return res.json({
+      runs: runs.map((r) => ({
+        id: r.id,
+        missionId: r.missionId,
+        score: r.score,
+        grade: r.grade,
+        crashed: r.crashed,
+        touchdownSpeed: r.touchdownSpeed,
+        padDeviation: r.padDeviation,
+        fuelRemaining: r.fuelRemaining,
+        tiltDeg: r.tiltDeg,
+        flightDuration: r.flightDuration,
+        createdAt: r.createdAt.toISOString(),
+      })),
+    });
+  } catch (err) {
+    logger.error({ err }, "player runs error");
+    return res.status(500).json({ error: "Internal server error" });
+  }
+});
+
 router.get("/players/:userId/stats", async (req, res) => {
   try {
     const { userId } = req.params;
