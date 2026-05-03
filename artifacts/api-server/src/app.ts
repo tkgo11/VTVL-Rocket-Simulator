@@ -1,5 +1,6 @@
 import express, { type Express } from "express";
 import cors from "cors";
+import cookieParser from "cookie-parser";
 import pinoHttp from "pino-http";
 import router from "./routes";
 import { logger } from "./lib/logger";
@@ -25,7 +26,33 @@ app.use(
     },
   }),
 );
-app.use(cors());
+// Lock CORS to explicit trusted origins.
+// In production, only the Replit deployment domain is trusted.
+// In development, also allow localhost and the Replit dev proxy domain.
+const TRUSTED_ORIGINS: (string | RegExp)[] = [
+  // Replit dev proxy: https://<REPL_ID>.replit.dev
+  /^https?:\/\/[a-zA-Z0-9-]+\.replit\.dev(:\d+)?$/,
+  // Replit deployment domains
+  /^https:\/\/[a-zA-Z0-9-]+\.replit\.app$/,
+  // Local development
+  /^https?:\/\/localhost(:\d+)?$/,
+  /^https?:\/\/127\.0\.0\.1(:\d+)?$/,
+];
+
+app.use(
+  cors({
+    origin: (origin, callback) => {
+      // Allow same-origin / non-browser requests (no origin header)
+      if (!origin) return callback(null, true);
+      const allowed = TRUSTED_ORIGINS.some((pattern) =>
+        typeof pattern === "string" ? pattern === origin : pattern.test(origin),
+      );
+      callback(allowed ? null : new Error("CORS: origin not allowed"), allowed);
+    },
+    credentials: true,
+  }),
+);
+app.use(cookieParser());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 

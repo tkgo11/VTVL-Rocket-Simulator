@@ -21,6 +21,8 @@ import {
   getSavedRecordings,
   saveRecording,
 } from '../lib/recording';
+import { api } from '../lib/api';
+import { usePlayer } from '../contexts/PlayerContext';
 
 function detectWebGL(): boolean {
   if (typeof window === 'undefined') return false;
@@ -44,6 +46,7 @@ interface SimulatorProps {
 
 export default function Simulator({ mission, onBackToMissions }: SimulatorProps) {
   const isMobile = useIsMobile();
+  const { player } = usePlayer();
   const [vehicle, setVehicle] = useState<VehicleConfig>(DEFAULT_VEHICLE);
   const [gravity, setGravity] = useState<number>(mission.gravity);
 
@@ -123,6 +126,47 @@ export default function Simulator({ mission, onBackToMissions }: SimulatorProps)
       setScoreDismissed(false);
     }
   }, [latestRecording]);
+
+  // Track whether the current run has been posted to the leaderboard.
+  const [leaderboardPosted, setLeaderboardPosted] = useState<string | null>(null);
+
+  const submitRunToLeaderboard = useCallback((token?: string, guestName?: string, recordingId?: string) => {
+    if (!runResult || !latestRecording) return;
+    const rid = recordingId ?? latestRecording.id;
+    if (leaderboardPosted === rid) return;
+    setLeaderboardPosted(rid);
+    api.runs.submit({
+      clientRunId: recordingId ?? latestRecording?.id,
+      missionId: effectiveMission.id,
+      guestName,
+      score: runResult.score.total,
+      grade: runResult.score.grade,
+      crashed: runResult.score.crashed,
+      touchdownSpeed: runResult.score.metrics.touchdownSpeed,
+      padDeviation: runResult.score.metrics.padDeviation,
+      fuelRemaining: runResult.score.metrics.fuelRemaining,
+      tiltDeg: runResult.score.metrics.tiltDeg,
+    }, token).catch(() => {
+      setLeaderboardPosted(null);
+    });
+  }, [runResult, latestRecording, effectiveMission.id, leaderboardPosted]);
+
+  // Signed-in users: auto-submit every completed run so personal stats are always up-to-date.
+  // Gated behind navigator.onLine so Solo mode never makes a network call when offline.
+  const autoSubmittedRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (!runResult || !latestRecording) return;
+    if (player?.type !== 'account' || !player.token) return;
+    if (!navigator.onLine) return;
+    if (autoSubmittedRef.current === latestRecording.id) return;
+    autoSubmittedRef.current = latestRecording.id;
+    submitRunToLeaderboard(player.token, player.displayName, latestRecording.id);
+  }, [runResult, latestRecording, player, submitRunToLeaderboard]);
+
+  // Guest users: expose an explicit opt-in button (no automatic network call).
+  const handlePostToLeaderboard = useCallback(() => {
+    submitRunToLeaderboard(undefined, player?.displayName);
+  }, [submitRunToLeaderboard, player?.displayName]);
 
   const handleReviewFlight = useCallback(() => {
     if (!latestRecording) return;
@@ -351,6 +395,8 @@ export default function Simulator({ mission, onBackToMissions }: SimulatorProps)
           onBackToMissions={onBackToMissions}
           onReplay={handleReviewFlight}
           canReplay={!!latestRecording}
+          onPostToLeaderboard={handlePostToLeaderboard}
+          leaderboardPosted={latestRecording ? leaderboardPosted === latestRecording.id : false}
         />
       )}
 

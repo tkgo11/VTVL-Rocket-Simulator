@@ -8,3 +8,117 @@
 export interface HealthStatus {
   status: string;
 }
+
+export interface ErrorResponse {
+  error: string;
+}
+
+export interface OkResponse {
+  ok: boolean;
+}
+
+export interface RegisterRequest {
+  username: string;
+  email: string;
+  password: string;
+}
+
+export interface LoginRequest {
+  email: string;
+  password: string;
+}
+
+export interface UserInfo {
+  id: string;
+  username: string;
+  email: string;
+}
+
+export interface AuthResponse {
+  token: string;
+  user: UserInfo;
+}
+
+export interface MeResponse {
+  user: UserInfo | null;
+}
+
+export type CreateRoomRequestType =
+  (typeof CreateRoomRequestType)[keyof typeof CreateRoomRequestType];
+
+export const CreateRoomRequestType = {
+  coop: "coop",
+  versus: "versus",
+} as const;
+
+export interface CreateRoomRequest {
+  type: CreateRoomRequestType;
+  missionId: string;
+  guestName?: string;
+}
+
+export interface RoomResponse {
+  id: string;
+  code: string;
+  type: string;
+  missionId: string;
+  status: string;
+  hostId: string;
+}
+
+/**
+ * Returned only from POST /rooms. Extends RoomResponse with hostSecret,
+ * a one-time credential the host must supply via the WS join_room message
+ * to claim host authority. Never returned by GET /rooms/{code}.
+ */
+export interface CreateRoomResponse extends RoomResponse {
+  /** UUID credential for the room host; never exposed to non-host clients. */
+  hostSecret: string;
+}
+
+export interface SubmitRunRequest {
+  /** Stable per-flight UUID for idempotent retries; server uses as run row PK when present. */
+  clientRunId?: string;
+  missionId: string;
+  guestName?: string;
+  score: number;
+  grade: string;
+  crashed: boolean;
+  touchdownSpeed?: number;
+  padDeviation?: number;
+  fuelRemaining?: number;
+  tiltDeg?: number;
+  flightDuration?: number;
+}
+
+export interface RunResponse {
+  id: string;
+  leaderboardId?: string | null;
+}
+
+export interface LeaderboardEntry {
+  id: string;
+  displayName: string;
+  missionId: string;
+  score: number;
+  grade: string;
+  createdAt: string;
+}
+
+export interface LeaderboardResponse {
+  entries: LeaderboardEntry[];
+}
+
+export interface PlayerStatsResponse {
+  userId: string;
+  username: string;
+  totalFlights: number;
+  bestScore?: number | null;
+  bestGrade?: string | null;
+  successRate: number;
+}
+
+export type GetLeaderboardParams = {
+  missionId?: string;
+  limit?: number;
+};

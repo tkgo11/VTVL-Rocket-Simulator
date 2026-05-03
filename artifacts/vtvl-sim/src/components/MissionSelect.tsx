@@ -4,9 +4,16 @@ import { MISSIONS } from '../lib/missions';
 import { getBest, LeaderboardEntry } from '../lib/leaderboard';
 import { GRADE_COLORS } from '../lib/scoring';
 import { Button } from './ui/button';
+import { PlayerIdentity } from '../contexts/PlayerContext';
 
 interface MissionSelectProps {
   onSelect: (mission: MissionConfig) => void;
+  onMultiplayer?: () => void;
+  onSpectate?: () => void;
+  onLeaderboard?: () => void;
+  onPlayerStats?: () => void;
+  onSignIn?: () => void;
+  player?: PlayerIdentity | null;
 }
 
 const DIFFICULTY_STYLE: Record<MissionConfig['difficulty'], string> = {
@@ -47,7 +54,7 @@ function BestBadge({ best }: { best: LeaderboardEntry | null }) {
   );
 }
 
-export function MissionSelect({ onSelect }: MissionSelectProps) {
+export function MissionSelect({ onSelect, onMultiplayer, onSpectate, onLeaderboard, onPlayerStats, onSignIn, player }: MissionSelectProps) {
   const [bests, setBests] = useState<Record<string, LeaderboardEntry | null>>({});
 
   useEffect(() => {
@@ -63,6 +70,65 @@ export function MissionSelect({ onSelect }: MissionSelectProps) {
       <div className="absolute inset-0 pointer-events-none opacity-30 [background-image:radial-gradient(circle_at_30%_20%,rgba(245,158,11,0.18),transparent_60%),radial-gradient(circle_at_75%_80%,rgba(59,130,246,0.15),transparent_55%)]" />
 
       <div className="relative max-w-6xl mx-auto px-6 py-12">
+        {/* Top nav bar */}
+        <div className="flex items-center justify-between mb-10">
+          <div className="flex gap-2">
+            {onMultiplayer && (
+              <Button
+                onClick={onMultiplayer}
+                className="bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/40 text-amber-300 font-mono text-xs uppercase tracking-wider"
+                size="sm"
+              >
+                ⚡ Multiplayer
+              </Button>
+            )}
+            {onSpectate && (
+              <Button
+                onClick={onSpectate}
+                variant="outline"
+                size="sm"
+                className="border-slate-700 text-slate-300 hover:text-amber-300 hover:border-amber-500/40 font-mono text-xs uppercase tracking-wider"
+              >
+                👁 Spectate
+              </Button>
+            )}
+            {onLeaderboard && (
+              <Button
+                onClick={onLeaderboard}
+                variant="outline"
+                size="sm"
+                className="border-slate-700 text-slate-300 hover:text-amber-300 hover:border-amber-500/40 font-mono text-xs uppercase tracking-wider"
+              >
+                🏆 Leaderboard
+              </Button>
+            )}
+          </div>
+          <div className="flex items-center gap-2">
+            {player?.type === 'account' ? (
+              <button
+                onClick={onPlayerStats}
+                className="flex items-center gap-2 px-3 py-1.5 rounded-md bg-slate-800/60 border border-slate-700 hover:border-amber-500/40 transition-colors"
+              >
+                <div className="w-6 h-6 rounded-full bg-amber-500/20 border border-amber-500/40 flex items-center justify-center text-amber-400 text-xs font-bold">
+                  {player.displayName[0]?.toUpperCase()}
+                </div>
+                <span className="text-xs font-mono text-slate-300">{player.displayName}</span>
+              </button>
+            ) : (
+              onSignIn && (
+                <Button
+                  onClick={onSignIn}
+                  variant="outline"
+                  size="sm"
+                  className="border-slate-700 text-slate-400 hover:text-white font-mono text-xs uppercase tracking-wider"
+                >
+                  Sign In
+                </Button>
+              )
+            )}
+          </div>
+        </div>
+
         <header className="mb-10 text-center">
           <div className="text-[10px] font-mono tracking-[0.4em] text-amber-500/80 mb-3">
             VTVL FLIGHT OPS // MISSION BRIEFING

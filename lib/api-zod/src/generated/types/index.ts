@@ -6,4 +6,21 @@
  * OpenAPI spec version: 0.1.0
  */
 
+export * from "./authResponse";
+export * from "./createRoomRequest";
+export * from "./createRoomRequestType";
+export * from "./createRoomResponse";
+export * from "./errorResponse";
+export * from "./getLeaderboardParams";
 export * from "./healthStatus";
+export * from "./leaderboardEntry";
+export * from "./leaderboardResponse";
+export * from "./loginRequest";
+export * from "./meResponse";
+export * from "./okResponse";
+export * from "./playerStatsResponse";
+export * from "./registerRequest";
+export * from "./roomResponse";
+export * from "./runResponse";
+export * from "./submitRunRequest";
+export * from "./userInfo";

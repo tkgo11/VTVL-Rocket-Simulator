@@ -14,3 +14,155 @@ import * as zod from "zod";
 export const HealthCheckResponse = zod.object({
   status: zod.string(),
 });
+
+/**
+ * @summary Create account
+ */
+export const RegisterBody = zod.object({
+  username: zod.string(),
+  email: zod.string(),
+  password: zod.string(),
+});
+
+export const RegisterResponse = zod.object({
+  token: zod.string(),
+  user: zod.object({
+    id: zod.string(),
+    username: zod.string(),
+    email: zod.string(),
+  }),
+});
+
+/**
+ * @summary Login
+ */
+export const LoginBody = zod.object({
+  email: zod.string(),
+  password: zod.string(),
+});
+
+export const LoginResponse = zod.object({
+  token: zod.string(),
+  user: zod.object({
+    id: zod.string(),
+    username: zod.string(),
+    email: zod.string(),
+  }),
+});
+
+/**
+ * @summary Logout
+ */
+export const LogoutResponse = zod.object({
+  ok: zod.boolean(),
+});
+
+/**
+ * @summary Get current user
+ */
+export const GetMeResponse = zod.object({
+  user: zod
+    .union([
+      zod.object({
+        id: zod.string(),
+        username: zod.string(),
+        email: zod.string(),
+      }),
+      zod.null(),
+    ])
+    .nullable(),
+});
+
+/**
+ * @summary Create a room
+ */
+export const CreateRoomBody = zod.object({
+  type: zod.enum(["coop", "versus"]),
+  missionId: zod.string(),
+  guestName: zod.string().optional(),
+});
+
+export const CreateRoomResponse = zod.object({
+  id: zod.string(),
+  code: zod.string(),
+  type: zod.string(),
+  missionId: zod.string(),
+  status: zod.string(),
+  hostId: zod.string(),
+});
+
+/**
+ * @summary Get room by code
+ */
+export const GetRoomParams = zod.object({
+  code: zod.coerce.string(),
+});
+
+export const GetRoomResponse = zod.object({
+  id: zod.string(),
+  code: zod.string(),
+  type: zod.string(),
+  missionId: zod.string(),
+  status: zod.string(),
+  hostId: zod.string(),
+});
+
+/**
+ * @summary Submit a flight run
+ */
+export const SubmitRunBody = zod.object({
+  missionId: zod.string(),
+  guestName: zod.string().optional(),
+  score: zod.number(),
+  grade: zod.string(),
+  crashed: zod.boolean(),
+  touchdownSpeed: zod.number().optional(),
+  padDeviation: zod.number().optional(),
+  fuelRemaining: zod.number().optional(),
+  tiltDeg: zod.number().optional(),
+  flightDuration: zod.number().optional(),
+});
+
+export const SubmitRunResponse = zod.object({
+  id: zod.string(),
+  leaderboardId: zod.string().nullish(),
+});
+
+/**
+ * @summary Get leaderboard entries
+ */
+export const getLeaderboardQueryLimitDefault = 50;
+
+export const GetLeaderboardQueryParams = zod.object({
+  missionId: zod.coerce.string().optional(),
+  limit: zod.coerce.number().default(getLeaderboardQueryLimitDefault),
+});
+
+export const GetLeaderboardResponse = zod.object({
+  entries: zod.array(
+    zod.object({
+      id: zod.string(),
+      displayName: zod.string(),
+      missionId: zod.string(),
+      score: zod.number(),
+      grade: zod.string(),
+      createdAt: zod.string(),
+    }),
+  ),
+});
+
+/**
+ * @summary Get player stats
+ */
+export const GetPlayerStatsParams = zod.object({
+  userId: zod.coerce.string(),
+});
+
+export const GetPlayerStatsResponse = zod.object({
+  userId: zod.string(),
+  username: zod.string(),
+  totalFlights: zod.number(),
+  bestScore: zod.number().nullish(),
+  bestGrade: zod.string().nullish(),
+  successRate: zod.number(),
+});

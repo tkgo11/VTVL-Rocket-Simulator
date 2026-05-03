@@ -10,6 +10,14 @@ servers:
 tags:
   - name: health
     description: Health operations
+  - name: auth
+    description: Authentication
+  - name: rooms
+    description: Multiplayer rooms
+  - name: runs
+    description: Flight run submission
+  - name: leaderboard
+    description: Leaderboard
 paths:
   /healthz:
     get:
@@ -24,6 +32,214 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+
+  /auth/register:
+    post:
+      operationId: register
+      tags: [auth]
+      summary: Create account
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RegisterRequest"
+      responses:
+        "200":
+          description: Registered and logged in
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthResponse"
+        "400":
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /auth/login:
+    post:
+      operationId: login
+      tags: [auth]
+      summary: Login
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LoginRequest"
+      responses:
+        "200":
+          description: Logged in
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthResponse"
+        "401":
+          description: Invalid credentials
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /auth/logout:
+    post:
+      operationId: logout
+      tags: [auth]
+      summary: Logout
+      responses:
+        "200":
+          description: Logged out
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OkResponse"
+
+  /auth/me:
+    get:
+      operationId: getMe
+      tags: [auth]
+      summary: Get current user
+      responses:
+        "200":
+          description: Current user or null
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MeResponse"
+
+  /rooms:
+    post:
+      operationId: createRoom
+      tags: [rooms]
+      summary: Create a room
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateRoomRequest"
+      responses:
+        "200":
+          description: Room created — response includes hostSecret (one-time, not returned by GET)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CreateRoomResponse"
+        "400":
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /rooms/{code}:
+    get:
+      operationId: getRoom
+      tags: [rooms]
+      summary: Get room by code
+      parameters:
+        - name: code
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Room info
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RoomResponse"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "410":
+          description: Room expired / no longer active
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /runs:
+    post:
+      operationId: submitRun
+      tags: [runs]
+      summary: Submit a flight run
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SubmitRunRequest"
+      responses:
+        "200":
+          description: Run submitted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RunResponse"
+        "400":
+          description: Invalid run data
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /leaderboard:
+    get:
+      operationId: getLeaderboard
+      tags: [leaderboard]
+      summary: Get leaderboard entries
+      parameters:
+        - name: missionId
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 50
+      responses:
+        "200":
+          description: Leaderboard entries
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LeaderboardResponse"
+
+  /players/{userId}/stats:
+    get:
+      operationId: getPlayerStats
+      tags: [leaderboard]
+      summary: Get player stats
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Player stats
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PlayerStatsResponse"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
 components:
   schemas:
     HealthStatus:
@@ -34,3 +250,234 @@ components:
       required:
         - status
 
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+      required:
+        - error
+
+    OkResponse:
+      type: object
+      properties:
+        ok:
+          type: boolean
+      required:
+        - ok
+
+    RegisterRequest:
+      type: object
+      properties:
+        username:
+          type: string
+        email:
+          type: string
+        password:
+          type: string
+      required:
+        - username
+        - email
+        - password
+
+    LoginRequest:
+      type: object
+      properties:
+        email:
+          type: string
+        password:
+          type: string
+      required:
+        - email
+        - password
+
+    AuthResponse:
+      type: object
+      properties:
+        token:
+          type: string
+        user:
+          $ref: "#/components/schemas/UserInfo"
+      required:
+        - token
+        - user
+
+    UserInfo:
+      type: object
+      properties:
+        id:
+          type: string
+        username:
+          type: string
+        email:
+          type: string
+      required:
+        - id
+        - username
+        - email
+
+    MeResponse:
+      type: object
+      properties:
+        user:
+          nullable: true
+          oneOf:
+            - $ref: "#/components/schemas/UserInfo"
+            - type: "null"
+      required:
+        - user
+
+    CreateRoomRequest:
+      type: object
+      properties:
+        type:
+          type: string
+          enum: [coop, versus]
+        missionId:
+          type: string
+        guestName:
+          type: string
+      required:
+        - type
+        - missionId
+
+    RoomResponse:
+      type: object
+      properties:
+        id:
+          type: string
+        code:
+          type: string
+        type:
+          type: string
+        missionId:
+          type: string
+        status:
+          type: string
+        hostId:
+          type: string
+      required:
+        - id
+        - code
+        - type
+        - missionId
+        - status
+        - hostId
+
+    CreateRoomResponse:
+      description: >
+        Returned only from POST /rooms. Extends RoomResponse with hostSecret,
+        a one-time credential the host must supply via the WS join_room message
+        to claim host authority. It is never returned by GET /rooms/{code}.
+      allOf:
+        - $ref: "#/components/schemas/RoomResponse"
+        - type: object
+          properties:
+            hostSecret:
+              type: string
+              description: UUID credential for the room host; never exposed to non-host clients.
+          required:
+            - hostSecret
+
+    SubmitRunRequest:
+      type: object
+      properties:
+        clientRunId:
+          type: string
+          description: >
+            Stable per-flight UUID generated by the client. When present, the
+            server uses it as the run row PK for idempotency — retrying the
+            same POST with the same clientRunId returns the previously recorded
+            result without inserting a duplicate row.
+        missionId:
+          type: string
+        guestName:
+          type: string
+        score:
+          type: integer
+        grade:
+          type: string
+        crashed:
+          type: boolean
+        touchdownSpeed:
+          type: number
+        padDeviation:
+          type: number
+        fuelRemaining:
+          type: number
+        tiltDeg:
+          type: number
+        flightDuration:
+          type: number
+      required:
+        - missionId
+        - score
+        - grade
+        - crashed
+
+    RunResponse:
+      type: object
+      properties:
+        id:
+          type: string
+        leaderboardId:
+          type: string
+          nullable: true
+      required:
+        - id
+
+    LeaderboardEntry:
+      type: object
+      properties:
+        id:
+          type: string
+        displayName:
+          type: string
+        missionId:
+          type: string
+        score:
+          type: integer
+        grade:
+          type: string
+        createdAt:
+          type: string
+      required:
+        - id
+        - displayName
+        - missionId
+        - score
+        - grade
+        - createdAt
+
+    LeaderboardResponse:
+      type: object
+      properties:
+        entries:
+          type: array
+          items:
+            $ref: "#/components/schemas/LeaderboardEntry"
+      required:
+        - entries
+
+    PlayerStatsResponse:
+      type: object
+      properties:
+        userId:
+          type: string
+        username:
+          type: string
+        totalFlights:
+          type: integer
+        bestScore:
+          type: integer
+          nullable: true
+        bestGrade:
+          type: string
+          nullable: true
+        successRate:
+          type: number
+      required:
+        - userId
+        - username
+        - totalFlights
+        - successRate

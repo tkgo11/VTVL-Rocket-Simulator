@@ -45,6 +45,8 @@ export interface MissionConfig {
   wind: number;
   windGust: number;
   airDensity: number;
+  /** Phase offset (radians) applied to wind gust sines. Used by multiplayer to sync gust pattern across clients from a shared seed. */
+  windPhase?: number;
 }
 
 /**
@@ -126,8 +128,11 @@ export function createInitialState(
 export function currentWind(mission: MissionConfig, t: number): number {
   if (mission.windGust === 0) return mission.wind;
   // Two superposed sines so the gust pattern doesn't feel periodic.
+  // windPhase shifts both sines identically so multiplayer clients
+  // seeded from the same value experience the same gust pattern.
+  const phase = mission.windPhase ?? 0;
   const gust =
-    Math.sin(t * 0.7) * 0.6 + Math.sin(t * 1.7 + 1.3) * 0.4;
+    Math.sin(t * 0.7 + phase) * 0.6 + Math.sin(t * 1.7 + 1.3 + phase) * 0.4;
   return mission.wind + gust * mission.windGust;
 }
 

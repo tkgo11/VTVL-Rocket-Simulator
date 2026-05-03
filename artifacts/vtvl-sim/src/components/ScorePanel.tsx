@@ -10,6 +10,10 @@ interface ScorePanelProps {
   onBackToMissions: () => void;
   onReplay?: () => void;
   canReplay?: boolean;
+  /** Called when the user explicitly opts to post their score to the global leaderboard. No-op if undefined (e.g. in replay mode). */
+  onPostToLeaderboard?: () => void;
+  /** True when this run has already been posted. Shows confirmation instead of the button. */
+  leaderboardPosted?: boolean;
 }
 
 function ScoreBar({
@@ -51,6 +55,8 @@ export function ScorePanel({
   onBackToMissions,
   onReplay,
   canReplay,
+  onPostToLeaderboard,
+  leaderboardPosted,
 }: ScorePanelProps) {
   const { score, isNewBest, previousBest, best } = result;
   const crashed = score.crashed;
@@ -170,6 +176,21 @@ export function ScorePanel({
               >
                 Review Flight (V)
               </Button>
+            )}
+            {onPostToLeaderboard && (
+              leaderboardPosted ? (
+                <div className="w-full text-center text-xs font-mono text-emerald-400 py-1 tracking-wider uppercase">
+                  ✓ Posted to Leaderboard
+                </div>
+              ) : (
+                <Button
+                  onClick={onPostToLeaderboard}
+                  variant="outline"
+                  className="w-full border-slate-600 text-slate-300 hover:bg-slate-800 hover:text-white font-bold tracking-wider uppercase text-xs"
+                >
+                  Post to Leaderboard
+                </Button>
+              )
             )}
           </div>
         </div>
